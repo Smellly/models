@@ -20,7 +20,9 @@ from __future__ import print_function
 
 import math
 import os
+import json
 
+from tqdm import tqdm
 
 import tensorflow as tf
 
@@ -38,9 +40,15 @@ tf.flags.DEFINE_string("vocab_file", "", "Text file containing the vocabulary.")
 tf.flags.DEFINE_string("input_files", "",
                        "File pattern or comma-separated list of file patterns "
                        "of image files.")
+tf.flags.DEFINE_string("output_files", "",
+                       "validation set saving path.")
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
+def getValID(path):
+  with open(path, 'r') as f:
+    raw = json.load(f)
+  return raw['images']
 
 def main(_):
   # Build the inference graph.
@@ -54,35 +62,40 @@ def main(_):
   # Create the vocabulary.
   vocab = vocabulary.Vocabulary(FLAGS.vocab_file)
 
-  filenames = []
-  print(FLAGS.input_files.split(","))
-  print(FLAGS.input_files.split(",")[0])
-  print(tf.gfile.Glob(FLAGS.input_files.split(",")[0]))
-  for file_pattern in FLAGS.input_files.split(","):
-    filenames.extend(tf.gfile.Glob(file_pattern))
+  img_path, annos_path = FLAGS.input_files.split(",")
+  save_path = FLAGS.output_files
+  # print(img_path)
+  # print(annos_path)
+  filenames = getValID(annos_path)
+  # print(type(filenames)) # list
+  # print(len(filenames))
   tf.logging.info("Running caption generation on %d files matching %s",
                   len(filenames), FLAGS.input_files)
 
   with tf.Session(graph=g) as sess:
     # Load the model from checkpoint.
     restore_fn(sess)
+    results = []
 
     # Prepare the caption generator. Here we are implicitly using the default
     # beam search parameters. See caption_generator.py for a description of the
     # available beam search parameters.
     generator = caption_generator.CaptionGenerator(model, vocab)
 
-    for filename in filenames:
+    for item in tqdm(filenames):
+      filename = img_path + item['file_name']
+      # print(filename)
       with tf.gfile.GFile(filename, "r") as f:
         image = f.read()
       captions = generator.beam_search(sess, image)
-      print("Captions for image %s:" % os.path.basename(filename))
-      for i, caption in enumerate(captions):
-        # Ignore begin and end words.
-        sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
-        sentence = " ".join(sentence)
-        print("  %d) %s (p=%f)" % (i, sentence, math.exp(caption.logprob)))
-
+      ppl = [math.exp(x.logprob) for x in captions]
+      caption = captions[ppl.index(min(ppl))]
+      sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
+      sentence = " ".join(sentence)
+      results.append({"image_id":item['id'], "caption":sentence})
+    
+    with open(save_path, 'w') as f:
+      json.dump(results, f)
 
 if __name__ == "__main__":
   tf.app.run()

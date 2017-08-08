@@ -20,9 +20,14 @@ from __future__ import print_function
 
 
 import tensorflow as tf
+import os
 
 from im2txt import configuration
 from im2txt import show_and_tell_model
+
+# modify in ../train.sh
+# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+# os.environ["CUDA_VISIBLE_DEVICES"]="3"
 
 FLAGS = tf.app.flags.FLAGS
 
