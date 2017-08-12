@@ -1,5 +1,5 @@
 # Directory containing preprocessed MSCOCO data.
-FLICKR_DIR="${HOME}/projects/ic_models/im2txt/im2txt/data/flickr30"
+FLICKR_DIR="${HOME}/projects/ic_models/im2txt/im2txt/data/blend_mscoco_with_flickr30"
 
 # Inception v3 checkpoint file.
 INCEPTION_CHECKPOINT="${HOME}/projects/ic_models/im2txt/im2txt/data/inception_v3.ckpt"
@@ -13,14 +13,13 @@ bazel build -c opt //im2txt/...
 
 # Ignore GPU devices (only necessary if your GPU is currently memory
 # constrained, for example, by running the training script).
-export CUDA_VISIBLE_DEVICES=1
-# echo $CUDA_VISIBLE_DEVICES
+export CUDA_VISIBLE_DEVICES=3
 
 # Run the training script.
 bazel-bin/im2txt/train \
   --input_file_pattern="${FLICKR_DIR}/train-?????-of-00256" \
   --inception_checkpoint_file="${INCEPTION_CHECKPOINT}" \
-  --train_dir="${MODEL_DIR}/flickr30" \
+  --train_dir="${MODEL_DIR}/blend_mscoco_with_flickr30" \
   --train_inception=false \
   --number_of_steps=1000000
 

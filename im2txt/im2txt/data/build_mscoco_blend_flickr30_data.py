@@ -12,49 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Converts MSCOCO data to TFRecord file format with SequenceExample protos.
-
-The MSCOCO images are expected to reside in JPEG files located in the following
-directory structure:
-
-  train_image_dir/COCO_train2014_000000000151.jpg
-  train_image_dir/COCO_train2014_000000000260.jpg
-  ...
-
-and
-
-  val_image_dir/COCO_val2014_000000000042.jpg
-  val_image_dir/COCO_val2014_000000000073.jpg
-  ...
-
-The MSCOCO annotations JSON files are expected to reside in train_captions_file
-and val_captions_file respectively.
-
-This script converts the combined MSCOCO data into sharded data files consisting
-of 256, 4 and 8 TFRecord files, respectively:
-
-  output_dir/train-00000-of-00256
-  output_dir/train-00001-of-00256
-  ...
-  output_dir/train-00255-of-00256
-
-and
-
-  output_dir/val-00000-of-00004
-  ...
-  output_dir/val-00003-of-00004
-
-and
-
-  output_dir/test-00000-of-00008
-  ...
-  output_dir/test-00007-of-00008
-
-Each TFRecord file contains ~2300 records. Each record within the TFRecord file
-is a serialized SequenceExample proto consisting of precisely one image-caption
-pair. Note that each image has multiple captions (usually 5) and therefore each
-image is replicated multiple times in the TFRecord files.
-
+"""
 The SequenceExample proto contains the following fields:
 
   context:
@@ -93,22 +51,25 @@ import random
 import sys
 import threading
 
-# from build_mscoco_data import _load_and_process_metadata as _load_and_process_cocodata
+
 
 import nltk.tokenize
 import numpy as np
 import tensorflow as tf
 
-
-tf.flags.DEFINE_string("train_image_dir", "/tmp/train2014/",
+tf.flags.DEFINE_string("coco_train_image_dir", "/tmp/train2014/",
                        "Training image directory.")
-tf.flags.DEFINE_string("val_image_dir", "/tmp/val2014/",
+tf.flags.DEFINE_string("coco_val_image_dir", "/tmp/val2014",
+                       "Validation image directory.")
+tf.flags.DEFINE_string("flickr_image_dir", "/tmp/val2014",
                        "Validation image directory.")
 
-tf.flags.DEFINE_string("train_captions_file", "/tmp/captions_train2014.json",
+tf.flags.DEFINE_string("coco_train_captions_file", "/tmp/captions_train2014.json",
                        "Training captions JSON file.")
-tf.flags.DEFINE_string("val_captions_file", "/tmp/captions_val2014.json",
+tf.flags.DEFINE_string("coco_val_captions_file", "/tmp/captions_train2014.json",
                        "Validation captions JSON file.")
+tf.flags.DEFINE_string("flickr_captions_file", "/tmp/captions_train2014.json",
+                       "Training captions JSON file.")
 
 tf.flags.DEFINE_string("output_dir", "/tmp/", "Output data directory.")
 
@@ -116,6 +77,8 @@ tf.flags.DEFINE_integer("train_shards", 256,
                         "Number of shards in training TFRecord files.")
 tf.flags.DEFINE_integer("val_shards", 4,
                         "Number of shards in validation TFRecord files.")
+tf.flags.DEFINE_string("train_captions_file", "/tmp/captions_train2014.json",
+                       "Training captions JSON file.")
 tf.flags.DEFINE_integer("test_shards", 8,
                         "Number of shards in testing TFRecord files.")
 
@@ -439,8 +402,7 @@ def _load_and_process_metadata(captions_file, image_dir):
 
   return image_metadata
 
-
-def _load_and_process_cocodata(captions_file, image_dir):
+def _load_and_process_cocodata(captions_file, image_dir, trainflag=False):
   """Loads image metadata from a JSON file and processes the captions.
 
   Args:
@@ -454,12 +416,14 @@ def _load_and_process_cocodata(captions_file, image_dir):
     caption_data = json.load(f)
 
   # Extract the filenames.
-  id_to_filename = [(x["id"], x["file_name"]) for x in caption_data["images"]]
+  id_to_filename = [(x["id"], x["file_name"]) for x in caption_data["images"]] \
+                        if not trainflag \
+                        else [(x["id"]*10000, x["file_name"]) for x in caption_data["images"]] 
 
   # Extract the captions. Each image_id is associated with multiple captions.
   id_to_captions = {}
   for annotation in caption_data["annotations"]:
-    image_id = annotation["image_id"]
+    image_id = annotation["image_id"]*10000 if trainflag else annotation["image_id"]
     caption = annotation["caption"]
     id_to_captions.setdefault(image_id, [])
     id_to_captions[image_id].append(caption)
@@ -499,18 +463,22 @@ def main(unused_argv):
     tf.gfile.MakeDirs(FLAGS.output_dir)
 
   # Load image metadata from caption files.
-  flickr30_train_dataset = _load_and_process_metadata(FLAGS.train_captions_file,
-                                                    FLAGS.train_image_dir)
-  mscoco_val_dataset = _load_and_process_cocodata(FLAGS.val_captions_file,
-                                                    FLAGS.val_image_dir)
+  flickr_train_dataset = _load_and_process_metadata(FLAGS.flickr_captions_file,
+                                                    FLAGS.flickr_image_dir)
+  mscoco_train_dataset = _load_and_process_cocodata(FLAGS.coco_train_captions_file,
+                                                    FLAGS.coco_train_image_dir,
+                                                    True)
+  mscoco_val_dataset = _load_and_process_cocodata(FLAGS.coco_val_captions_file,
+                                                  FLAGS.coco_val_image_dir)
 
   # Redistribute the MSCOCO data as follows:
   #   train_dataset = 100% of mscoco_train_dataset + 85% of mscoco_val_dataset.
   #   val_dataset = 5% of mscoco_val_dataset (for validation during training).
   #   test_dataset = 10% of mscoco_val_dataset (for final evaluation).
   train_cutoff = int(0.85 * len(mscoco_val_dataset))
-  train_dataset = flickr30_train_dataset
   val_cutoff = int(0.90 * len(mscoco_val_dataset))
+  train_dataset = mscoco_train_dataset + flickr_train_dataset + mscoco_val_dataset[0:train_cutoff]
+  # random.shuffle(train_dataset) _process_dataset will shuffle them
   val_dataset = mscoco_val_dataset[train_cutoff:val_cutoff]
   test_dataset = mscoco_val_dataset[val_cutoff:]
 
