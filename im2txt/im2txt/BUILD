@@ -41,6 +41,20 @@ sh_binary(
     ],
 )
 
+py_binary(
+    name = "build_mscoco_blend_flickr30_data",
+    srcs = [
+        "data/build_mscoco_blend_flickr30_data.py",
+    ],
+)
+
+sh_binary(
+    name = "preprocess_mscoco_blend_flickr30",
+    srcs = ["data/preprocess_mscoco_blend_flickr30.sh"],
+    data = [
+        ":build_mscoco_blend_flickr30_data",
+    ],
+)
 py_library(
     name = "configuration",
     srcs = ["configuration.py"],

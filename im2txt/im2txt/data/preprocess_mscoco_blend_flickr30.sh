@@ -25,8 +25,9 @@
 set -e
 
 # Create the output directories.
-OUTPUT_DIR="${HOME}/projects/ic_models/im2txt/im2txt/data/flickr30"
-DATA_DIR="${HOME}/projects/ic_models/im2txt/im2txt/data"
+OUTPUT_DIR="${HOME}/projects/ic_models/im2txt/im2txt/data/blend_mscoco_with_flickr30"
+COCO_DATA_DIR="${HOME}/projects/ic_models/im2txt/im2txt/data/mscoco"
+FLRKR_DATA_DIR="${HOME}/projects/ic_models/im2txt/im2txt/data/flickr30"
 SCRATCH_DIR="${OUTPUT_DIR}/raw-data"
 mkdir -p "${OUTPUT_DIR}"
 mkdir -p "${SCRATCH_DIR}"
@@ -35,21 +36,23 @@ WORK_DIR="$0.runfiles/im2txt/im2txt"
 
 cd ${SCRATCH_DIR}
 
-TRAIN_IMAGE_DIR="${DATA_DIR}/mscoco/raw-data/train2014"
-VAL_IMAGE_DIR="${DATA_DIR}/mscoco/raw-data/val2014"
-IMAGE_DIR="${SCRATCH_DIR}/flickr30k-images"
+COCO_TRAIN_IMAGE_DIR="${COCO_DATA_DIR}/raw-data/train2014"
+COCO_VAL_IMAGE_DIR="${COCO_DATA_DIR}/raw-data/val2014"
+FLRKR_IMAGE_DIR="${FLRKR_DATA_DIR}/raw-data/flickr30k-images"
 
-TRAIN_CAPTIONS_FILE="${DATA__DIR}/mscoco/raw-data/annotations/captions_train2014.json"
-VAL_CAPTIONS_FILE="${DATA_DIR}/mscoco/raw-data/annotations/captions_val2014.json"
-CAPTIONS_FILE="${SCRATCH_DIR}/dataset_flickr30k.json"
+COCO_TRAIN_CAPTIONS_FILE="${COCO_DATA_DIR}/raw-data/annotations/captions_train2014.json"
+COCO_VAL_CAPTIONS_FILE="${COCO_DATA_DIR}/raw-data/annotations/captions_val2014.json"
+FLRKR_CAPTIONS_FILE="${FLRKR_DATA_DIR}/raw-data/dataset_flickr30k.json"
 
 # Build TFRecords of the image data.
 cd "${CURRENT_DIR}"
-BUILD_SCRIPT="${WORK_DIR}/build_flickr30_data"
+BUILD_SCRIPT="${WORK_DIR}/build_mscoco_blend_flickr30_data"
 "${BUILD_SCRIPT}" \
-  --train_image_dir="${IMAGE_DIR}" \
-  --val_image_dir="${VAL_IMAGE_DIR}" \
-  --train_captions_file="${CAPTIONS_FILE}" \
-  --val_captions_file="${VAL_CAPTIONS_FILE}" \
+  --coco_train_image_dir="${COCO_TRAIN_IMAGE_DIR}" \
+  --coco_val_image_dir="${COCO_VAL_IMAGE_DIR}" \
+  --flickr_image_dir="${FLRKR_IMAGE_DIR}" \
+  --coco_train_captions_file="${COCO_TRAIN_CAPTIONS_FILE}" \
+  --coco_val_captions_file="${COCO_VAL_CAPTIONS_FILE}" \
+  --flickr_captions_file="${FLRKR_CAPTIONS_FILE}" \
   --output_dir="${OUTPUT_DIR}" \
-  --word_counts_output_file="${OUTPUT_DIR}/word_counts.txt" \
+  --word_counts_output_file="${OUTPUT_DIR}/wordcounts.txt" \
