@@ -75,7 +75,7 @@ tf.flags.DEFINE_integer("num_threads", 8,
 FLAGS = tf.flags.FLAGS
 
 ImageMetadata = namedtuple("ImageMetadata",
-                           ["image_id", "filename", "captions", "attributes"])
+                           ["image_id", "filename", "captions", "attribute"])
 
 
 class Vocabulary(object):
@@ -245,7 +245,7 @@ def _process_dataset(name, images, vocab, num_shards):
     num_shards: Integer number of shards for the output files.
   """
   # Break up each image into a separate entity for each caption.
-  images = [ImageMetadata(image.image_id, image.filename, [caption])
+  images = [ImageMetadata(image.image_id, image.filename, [caption], image.attribute)
             for image in images for caption in image.captions]
 
   # Shuffle the ordering of images. Make the randomization repeatable.
@@ -351,13 +351,7 @@ def _load_and_process_metadata(captions_file, image_dir, attr_file):
 
   # Extract the filenames.
   id_to_filename = [(x["id"], x["file_name"]) for x in caption_data["images"]]
-  filename_to_id = dict([ (x["file_name"], x["id"]) for x in caption_data["images"]]
-
-  # Extract the attribute. Each image_id is associated with an attribute.
-  id_to_attribte = {}
-  for filename, attribute in attr_data:
-    p = [literal_eval(i.split(':')[1])[0] for i in attribute]
-    id_to_attribute[filename_to_id[filename]] = np.array(p)
+  filename_to_id = dict([ (x["file_name"], x["id"]) for x in caption_data["images"]])
 
   # Extract the captions. Each image_id is associated with multiple captions.
   id_to_captions = {}
@@ -366,6 +360,12 @@ def _load_and_process_metadata(captions_file, image_dir, attr_file):
     caption = annotation["caption"]
     id_to_captions.setdefault(image_id, [])
     id_to_captions[image_id].append(caption)
+
+  # Extract the attribute. Each image_id is associated with an attribute.
+  id_to_attribute = {}
+  for filename, attribute in attr_data.iteritems():
+    p = [literal_eval(i.split(':')[1])[0] for i in attribute]
+    id_to_attribute[filename_to_id[filename]] = np.array(p)
 
   assert len(id_to_filename) == len(id_to_captions)
   assert len(id_to_filename) == len(id_to_attribute)
@@ -380,8 +380,8 @@ def _load_and_process_metadata(captions_file, image_dir, attr_file):
   for image_id, base_filename in id_to_filename:
     filename = os.path.join(image_dir, base_filename)
     captions = [_process_caption(c) for c in id_to_captions[image_id]]
-    attributes = [a for a in id_to_attribute[image_id]]
-    image_metadata.append(ImageMetadata(image_id, filename, captions, attributes))
+    attribute = id_to_attribute[image_id]
+    image_metadata.append(ImageMetadata(image_id, filename, captions, attribute))
     num_captions += len(captions)
   print("Finished processing %d captions for %d images in %s" %
         (num_captions, len(id_to_filename), captions_file))

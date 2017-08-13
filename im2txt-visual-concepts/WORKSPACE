@@ -1,1 +1,1 @@
-workspace(name = "im2txt")
+workspace(name = "im2txt_visual_concepts")

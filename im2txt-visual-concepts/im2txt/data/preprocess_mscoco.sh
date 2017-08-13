@@ -27,13 +27,11 @@ set -e
 # Create the output directories.
 OUTPUT_DIR="${1%/}"
 SCRATCH_DIR="${OUTPUT_DIR}/raw-data"
-mkdir -p "${OUTPUT_DIR}"
-mkdir -p "${SCRATCH_DIR}"
 CURRENT_DIR=$(pwd)
-WORK_DIR="$0.runfiles/im2txt/im2txt"
-
-
-cd ${SCRATCH_DIR}
+WORK_DIR="$0.runfiles/im2txt_visual_concepts/im2txt"
+# echo "SCRATCH_DIR":$SCRATCH_DIR
+# echo "CURRENT_DIR":$CURRENT_DIR
+# echo "WORK_DIR":$WORK_DIR
 
 TRAIN_IMAGE_DIR="${SCRATCH_DIR}/train2014"
 VAL_IMAGE_DIR="${SCRATCH_DIR}/val2014"
