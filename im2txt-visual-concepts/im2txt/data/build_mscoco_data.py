@@ -12,74 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Converts MSCOCO data to TFRecord file format with SequenceExample protos.
-
-The MSCOCO images are expected to reside in JPEG files located in the following
-directory structure:
-
-  train_image_dir/COCO_train2014_000000000151.jpg
-  train_image_dir/COCO_train2014_000000000260.jpg
-  ...
-
-and
-
-  val_image_dir/COCO_val2014_000000000042.jpg
-  val_image_dir/COCO_val2014_000000000073.jpg
-  ...
-
-The MSCOCO annotations JSON files are expected to reside in train_captions_file
-and val_captions_file respectively.
-
-This script converts the combined MSCOCO data into sharded data files consisting
-of 256, 4 and 8 TFRecord files, respectively:
-
-  output_dir/train-00000-of-00256
-  output_dir/train-00001-of-00256
-  ...
-  output_dir/train-00255-of-00256
-
-and
-
-  output_dir/val-00000-of-00004
-  ...
-  output_dir/val-00003-of-00004
-
-and
-
-  output_dir/test-00000-of-00008
-  ...
-  output_dir/test-00007-of-00008
-
-Each TFRecord file contains ~2300 records. Each record within the TFRecord file
-is a serialized SequenceExample proto consisting of precisely one image-caption
-pair. Note that each image has multiple captions (usually 5) and therefore each
-image is replicated multiple times in the TFRecord files.
-
-The SequenceExample proto contains the following fields:
-
-  context:
-    image/image_id: integer MSCOCO image identifier
-    image/data: string containing JPEG encoded image in RGB colorspace
-
-  feature_lists:
-    image/caption: list of strings containing the (tokenized) caption words
-    image/caption_ids: list of integer ids corresponding to the caption words
-
-The captions are tokenized using the NLTK (http://www.nltk.org/) word tokenizer.
-The vocabulary of word identifiers is constructed from the sorted list (by
-descending frequency) of word tokens in the training set. Only tokens appearing
-at least 4 times are considered; all other words get the "unknown" word id.
-
-NOTE: This script will consume around 100GB of disk space because each image
-in the MSCOCO dataset is replicated ~5 times (once per caption) in the output.
-This is done for two reasons:
-  1. In order to better shuffle the training data.
-  2. It makes it easier to perform asynchronous preprocessing of each image in
-     TensorFlow.
-
-Running this script using 16 threads may take around 1 hour on a HP Z420.
-"""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -111,8 +43,10 @@ tf.flags.DEFINE_string("train_captions_file", "/tmp/captions_train2014.json",
 tf.flags.DEFINE_string("val_captions_file", "/tmp/captions_val2014.json",
                        "Validation captions JSON file.")
 
-tf.flags.DEFINE_string("attr_file", "",
-		       "image attributes.")
+tf.flags.DEFINE_string("train_attr_file", "",
+		       "Training image attributes.")
+tf.flags.DEFINE_string("val_attr_file", "",
+		       "Validation image attributes.")
 
 tf.flags.DEFINE_string("output_dir", "/tmp/", "Output data directory.")
 
@@ -141,7 +75,7 @@ tf.flags.DEFINE_integer("num_threads", 8,
 FLAGS = tf.flags.FLAGS
 
 ImageMetadata = namedtuple("ImageMetadata",
-                           ["image_id", "filename", "captions"])
+                           ["image_id", "filename", "captions", "attributes"])
 
 
 class Vocabulary(object):
@@ -399,7 +333,7 @@ def _process_caption(caption):
   return tokenized_caption
 
 
-def _load_and_process_metadata(captions_file, image_dir):
+def _load_and_process_metadata(captions_file, image_dir, attr_file):
   """Loads image metadata from a JSON file and processes the captions.
 
   Args:
@@ -434,6 +368,7 @@ def _load_and_process_metadata(captions_file, image_dir):
     id_to_captions[image_id].append(caption)
 
   assert len(id_to_filename) == len(id_to_captions)
+  assert len(id_to_filename) == len(id_to_attribute)
   assert set([x[0] for x in id_to_filename]) == set(id_to_captions.keys())
   print("Loaded caption metadata for %d images from %s" %
         (len(id_to_filename), captions_file))
@@ -445,7 +380,8 @@ def _load_and_process_metadata(captions_file, image_dir):
   for image_id, base_filename in id_to_filename:
     filename = os.path.join(image_dir, base_filename)
     captions = [_process_caption(c) for c in id_to_captions[image_id]]
-    image_metadata.append(ImageMetadata(image_id, filename, captions))
+    attributes = [a for a in id_to_attribute[image_id]]
+    image_metadata.append(ImageMetadata(image_id, filename, captions, attributes))
     num_captions += len(captions)
   print("Finished processing %d captions for %d images in %s" %
         (num_captions, len(id_to_filename), captions_file))
@@ -470,9 +406,11 @@ def main(unused_argv):
 
   # Load image metadata from caption files.
   mscoco_train_dataset = _load_and_process_metadata(FLAGS.train_captions_file,
-                                                    FLAGS.train_image_dir)
+                                                    FLAGS.train_image_dir,
+                                                    FLAGS.train_attr_file)
   mscoco_val_dataset = _load_and_process_metadata(FLAGS.val_captions_file,
-                                                  FLAGS.val_image_dir)
+                                                  FLAGS.val_image_dir,
+                                                  FLAGS.val_attr_file)
 
   # Redistribute the MSCOCO data as follows:
   #   train_dataset = 100% of mscoco_train_dataset + 85% of mscoco_val_dataset.

@@ -38,6 +38,9 @@ cd ${SCRATCH_DIR}
 TRAIN_IMAGE_DIR="${SCRATCH_DIR}/train2014"
 VAL_IMAGE_DIR="${SCRATCH_DIR}/val2014"
 
+TRAIN_ATTR_FILE="${SCRATCH_DIR}/train_sorted.json"
+VAL_ATTR_FILE="${SCRATCH_DIR}/val_sorted.json" 
+
 TRAIN_CAPTIONS_FILE="${SCRATCH_DIR}/annotations/captions_train2014.json"
 VAL_CAPTIONS_FILE="${SCRATCH_DIR}/annotations/captions_val2014.json"
 
@@ -47,6 +50,8 @@ BUILD_SCRIPT="${WORK_DIR}/build_mscoco_data"
 "${BUILD_SCRIPT}" \
   --train_image_dir="${TRAIN_IMAGE_DIR}" \
   --val_image_dir="${VAL_IMAGE_DIR}" \
+  --train_attr_file="${TRAIN_ATTR_FILE}" \
+  --val_attr_file="${VAL_ATTR_FILE}" \
   --train_captions_file="${TRAIN_CAPTIONS_FILE}" \
   --val_captions_file="${VAL_CAPTIONS_FILE}" \
   --output_dir="${OUTPUT_DIR}" \

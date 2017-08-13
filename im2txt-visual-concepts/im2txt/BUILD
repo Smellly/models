@@ -20,7 +20,7 @@ py_binary(
 
 sh_binary(
     name = "download_and_preprocess_mscoco",
-    srcs = ["data/download_and_preprocess_mscoco.sh"],
+    srcs = ["data/preprocess_mscoco.sh"],
     data = [
         ":build_mscoco_data",
     ],
