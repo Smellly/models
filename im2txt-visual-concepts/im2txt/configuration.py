@@ -104,5 +104,8 @@ class TrainingConfig(object):
     # If not None, clip gradients to this value.
     self.clip_gradients = 5.0
 
+    #  set how GPU memory is used
+    self.allow_growth = True
+
     # How many model checkpoints to keep.
     self.max_checkpoints_to_keep = 5

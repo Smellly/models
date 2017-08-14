@@ -161,6 +161,7 @@ def _to_sequence_example(image, decoder, vocab):
   context = tf.train.Features(feature={
       "image/image_id": _int64_feature(image.image_id),
       "image/data": _bytes_feature(encoded_image),
+      "image/attr_data": _bytes_feature(image.attribute),
   })
 
   assert len(image.captions) == 1

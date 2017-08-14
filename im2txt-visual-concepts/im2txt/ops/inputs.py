@@ -23,7 +23,7 @@ from __future__ import print_function
 import tensorflow as tf
 
 
-def parse_sequence_example(serialized, image_feature, caption_feature):
+def parse_sequence_example(serialized, image_feature, caption_feature, attr_feature):
   """Parses a tensorflow.SequenceExample into an image and caption.
 
   Args:
@@ -40,7 +40,7 @@ def parse_sequence_example(serialized, image_feature, caption_feature):
   context, sequence = tf.parse_single_sequence_example(
       serialized,
       context_features={
-          image_feature: tf.FixedLenFeature([], dtype=tf.string)
+          image_feature: tf.FixedLenFeature([], dtype=tf.string),
           attr_feature: tf.FixedLenFeature([], dtype=tf.string)
       },
       sequence_features={

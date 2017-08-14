@@ -1,3 +1,4 @@
+# encoding: utf-8
 # Copyright 2016 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -197,6 +198,8 @@ class ShowAndTellModel(object):
         self.images,
         trainable=self.train_inception,
         is_training=self.is_training())
+
+    # 根据name返回一个收集器中所收集的值的列表
     self.inception_variables = tf.get_collection(
         tf.GraphKeys.GLOBAL_VARIABLES, scope="InceptionV3")
 
@@ -229,6 +232,7 @@ class ShowAndTellModel(object):
           name="map",
           shape=[self.config.vocab_size, self.config.embedding_size],
           initializer=self.initializer)
+      # Looks up ids in a list of embedding tensors
       seq_embeddings = tf.nn.embedding_lookup(embedding_map, self.input_seqs)
 
     self.seq_embeddings = seq_embeddings
@@ -242,13 +246,19 @@ class ShowAndTellModel(object):
     Outputs:
       self.attr_embeddings
     """
-    with tf.variable_scope("attr_embedding"), tf.device("/cpu:1"):
-      embedding_map = tf.get_variable(
-          name="map",
-          shape=[self.config.attr_length, self.config.embedding_size],
-          initializer=self.initializer)
-      attr_embeddings = tf.nn.embedding_lookup(embedding_map, self.input_attrs)
+    with tf.variable_scope("attr_embedding"), tf.device("/cpu:1") as scope:
+      print(self.input_attrs.get_shape())
+      print(tf.expand_dims(self.input_attrs, 1).get_shape())
+      attr_embeddings = tf.contrib.layers.fully_connected(
+          inputs=tf.expand_dims(self.input_attrs, 1),
+          num_outputs=self.config.embedding_size,
+          activation_fn=None,
+          weights_initializer=self.initializer,
+          biases_initializer=None,
+          scope=scope)
 
+    # Save the embedding size in the graph.
+    # tf.constant(self.config.embedding_size, name="embedding_size")
     self.attr_embeddings = attr_embeddings
 
   def build_model(self):
@@ -278,17 +288,19 @@ class ShowAndTellModel(object):
 
     with tf.variable_scope("lstm", initializer=self.initializer) as lstm_scope:
 
-      # Feed the attribute embeddins to set the initial LSTM state.
+      # init the LSTM　
+      # Return zero-filled state tensor(s).
       minus_one_state = lstm_cell.zero_state(
           batch_size=self.attr_embeddings.get_shape()[0], dtype=tf.float32)
       
-      # Feed the image embeddings to set the initial LSTM state.
       '''
       zero_state = lstm_cell.zero_state(
           batch_size=self.image_embeddings.get_shape()[0], dtype=tf.float32)
       _, initial_state = lstm_cell(self.image_embeddings, zero_state)
       '''
+      # Feed the attribute embeddins to set the initial LSTM state.
       _, zero_state = lstm_cell(self.attr_embeddings, minus_one_state)
+      # Feed the image embeddings to set the initial LSTM state.
       _, initial_state = lstm_cell(self.image_embeddings, zero_state)
 
       # Allow the LSTM variables to be reused.
@@ -386,7 +398,7 @@ class ShowAndTellModel(object):
     self.build_inputs()
     self.build_image_embeddings()
     self.build_seq_embeddings()
-    self.build_attar_embeddings()
+    self.build_attr_embeddings()
     self.build_model()
     self.setup_inception_initializer()
     self.setup_global_step()
