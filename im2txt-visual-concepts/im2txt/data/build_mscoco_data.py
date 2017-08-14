@@ -366,7 +366,7 @@ def _load_and_process_metadata(captions_file, image_dir, attr_file):
   id_to_attribute = {}
   for filename, attribute in attr_data.iteritems():
     p = [literal_eval(i.split(':')[1])[0] for i in attribute]
-    id_to_attribute[filename_to_id[filename]] = np.array(p)
+    id_to_attribute[filename_to_id[filename]] = p # np.array(p).astype('float32')
 
   assert len(id_to_filename) == len(id_to_captions)
   assert len(id_to_filename) == len(id_to_attribute)

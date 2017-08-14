@@ -41,7 +41,7 @@ def parse_sequence_example(serialized, image_feature, caption_feature, attr_feat
       serialized,
       context_features={
           image_feature: tf.FixedLenFeature([], dtype=tf.string),
-          attr_feature: tf.FixedLenFeature([], dtype=tf.string)
+          attr_feature: tf.FixedLenFeature([], dtype=tf.string),
       },
       sequence_features={
           caption_feature: tf.FixedLenSequenceFeature([], dtype=tf.int64),
@@ -50,6 +50,10 @@ def parse_sequence_example(serialized, image_feature, caption_feature, attr_feat
   encoded_image = context[image_feature]
   caption = sequence[caption_feature]
   attribute = context[attr_feature]
+  # print('[DEBUG]parse_sequence_example:encoded_image dtype', encoded_image.dtype)
+  # print('[DEBUG]parse_sequence_example:encoded_image dtype', encoded_image.get_shape())
+  # print('[DEBUG]parse_sequence_example:attribute dtype', attribute.dtype)
+  # print('[DEBUG]parse_sequence_example:attribute dtype', attribute.get_shape())
   return encoded_image, caption, attribute
 
 

@@ -67,7 +67,7 @@ class ShowAndTellModel(object):
     # An int32 Tensor with shape [batch_size, padded_length].
     self.input_seqs = None
 
-    # An int32 Tensor with shape [batch_size, padded_length].
+    # An float32 Tensor with shape [batch_size, attr_length].
     self.input_attrs = None
 
     # An int32 Tensor with shape [batch_size, padded_length].
@@ -134,17 +134,21 @@ class ShowAndTellModel(object):
     if self.mode == "inference":
       # In inference mode, images and inputs are fed via placeholders.
       image_feed = tf.placeholder(dtype=tf.string, shape=[], name="image_feed")
+      attr_feed = tf.placeholder(dtype=tf.string, 
+                                 shape=[self.attr_length],
+                                 name="attr_feed")
       input_feed = tf.placeholder(dtype=tf.int64,
                                   shape=[None],  # batch_size
                                   name="input_feed")
 
       # Process image and insert batch dimensions.
       images = tf.expand_dims(self.process_image(image_feed), 0)
+      print('[DEBUG]build_inputs: images dtype is',images.dtype)
       input_seqs = tf.expand_dims(input_feed, 1)
-      input_attrs = tf.expand_dims(input_feed, 1)
+      input_attrs = tf.expand_dims(attr_feed, 1) #[1000] -> [1000, 1]
 
       # No target sequences or input mask in inference mode.
-      target_seqs = None
+      target_seqs = Noneinpuuinininpu
       input_mask = None
     else:
       # Prefetch serialized SequenceExample protos.
@@ -169,8 +173,14 @@ class ShowAndTellModel(object):
             caption_feature=self.config.caption_feature_name,
             attr_feature=self.config.attr_feature_name)
         image = self.process_image(encoded_image, thread_id=thread_id)
+        attribute = tf.reshape(tf.decode_raw(attribute, tf.float32), [1000])
         images_and_captions.append([image, caption, attribute])
-
+      # print('[DEBUG]build_inputs:encoded_image dtype', encoded_image.dtype)
+      # print('[DEBUG]build_inputs:encoded_image dtype', encoded_image.get_shape())
+      # print('[DEBUG]build_inputs:image dtype', images_and_captions[0][0].dtype)
+      # print('[DEBUG]build_inputs:image dtype', images_and_captions[0][0].get_shape())
+      # print('[DEBUG]build_inputs:attribute dtype', images_and_captions[0][-1].dtype)
+      # print('[DEBUG]build_inputs:attribute dtype', images_and_captions[0][-1].get_shape())
       # Batch inputs.
       queue_capacity = (2 * self.config.num_preprocess_threads *
                         self.config.batch_size)
@@ -246,11 +256,12 @@ class ShowAndTellModel(object):
     Outputs:
       self.attr_embeddings
     """
-    with tf.variable_scope("attr_embedding"), tf.device("/cpu:1") as scope:
-      print(self.input_attrs.get_shape())
-      print(tf.expand_dims(self.input_attrs, 1).get_shape())
+    with tf.variable_scope("attr_embedding"), tf.device("/cpu:0") as scope:
+      # print('[DEBUG]build_attr_embeddings:', self.input_attrs.get_shape())
+      # print('[DEBUG]build_attr_embeddings:', tf.expand_dims(self.input_attrs, 1).get_shape())
       attr_embeddings = tf.contrib.layers.fully_connected(
-          inputs=tf.expand_dims(self.input_attrs, 1),
+          # inputs=tf.expand_dims(self.input_attrs, 1),
+          inputs=self.input_attrs, 
           num_outputs=self.config.embedding_size,
           activation_fn=None,
           weights_initializer=self.initializer,
