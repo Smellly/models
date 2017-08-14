@@ -50,7 +50,7 @@ class ModelConfig(object):
     # for differences between tokenizer versions used in preprocessing. There is
     # no harm in using a value greater than the actual vocab size, but using a
     # value less than the actual vocab size will result in an error.
-    self.vocab_size = 12000
+    self.vocab_size = 12000 # 12000 # = =
 
     # Number of threads for image preprocessing. Should be a multiple of 2.
     self.num_preprocess_threads = 4
@@ -100,5 +100,10 @@ class TrainingConfig(object):
     # If not None, clip gradients to this value.
     self.clip_gradients = 5.0
 
+    #  set how GPU memory is used
+    self.allow_growth = True
+
     # How many model checkpoints to keep.
-    self.max_checkpoints_to_keep = 0
+    self.max_checkpoints_to_keep = 5
+    # How often to keep checkpoints
+    # self.keep_checkpoint_every_n_hours = 2
