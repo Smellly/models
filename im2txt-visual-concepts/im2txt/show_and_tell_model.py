@@ -173,7 +173,6 @@ class ShowAndTellModel(object):
             caption_feature=self.config.caption_feature_name,
             attr_feature=self.config.attr_feature_name)
         image = self.process_image(encoded_image, thread_id=thread_id)
-        attribute = tf.reshape(tf.decode_raw(attribute, tf.float32), [1000])
         images_and_captions.append([image, caption, attribute])
       # print('[DEBUG]build_inputs:encoded_image dtype', encoded_image.dtype)
       # print('[DEBUG]build_inputs:encoded_image dtype', encoded_image.get_shape())
