@@ -45,7 +45,7 @@ class ModelConfig(object):
     # Name of the SequenceExample feature list containing integer captions.
     self.caption_feature_name = "image/caption_ids"
     # Name of the SequenceExample context feature containing attr data.
-    self.attr_feature_name = "image/data" #?
+    self.attr_feature_name = "image/attr_data"
     # Number of unique words in the vocab (plus 1, for <UNK>).
     # The default value is larger than the expected actual vocab size to allow
     # for differences between tokenizer versions used in preprocessing. There is
@@ -103,9 +103,6 @@ class TrainingConfig(object):
 
     # If not None, clip gradients to this value.
     self.clip_gradients = 5.0
-
-    #  set how GPU memory is used
-    self.allow_growth = True
 
     # How many model checkpoints to keep.
     self.max_checkpoints_to_keep = 5

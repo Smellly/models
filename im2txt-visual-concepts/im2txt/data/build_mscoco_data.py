@@ -130,7 +130,7 @@ def _bytes_feature(value):
 def _float_feature(value):
   """Wrapper for inserting a float Feature into a SequenceExample proto.
   examples: [1.2, 1.3, 1.4] or numpy.array([1.2, 1.3, 1.4]).astype(numpy.float)"""
-  return tf.train.Feature(float_list=tf.train.BytesList(value=value))
+  return tf.train.Feature(float_list=tf.train.FloatList(value=value))
   
 def _int64_feature_list(values):
   """Wrapper for inserting an int64 FeatureList into a SequenceExample proto."""
