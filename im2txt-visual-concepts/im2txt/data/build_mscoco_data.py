@@ -127,7 +127,11 @@ def _bytes_feature(value):
   """Wrapper for inserting a bytes Feature into a SequenceExample proto."""
   return tf.train.Feature(bytes_list=tf.train.BytesList(value=[str(value)]))
 
-
+def _float_feature(value):
+  """Wrapper for inserting a float Feature into a SequenceExample proto.
+  examples: [1.2, 1.3, 1.4] or numpy.array([1.2, 1.3, 1.4]).astype(numpy.float)"""
+  return tf.train.Feature(float_list=tf.train.BytesList(value=value))
+  
 def _int64_feature_list(values):
   """Wrapper for inserting an int64 FeatureList into a SequenceExample proto."""
   return tf.train.FeatureList(feature=[_int64_feature(v) for v in values])
@@ -161,7 +165,7 @@ def _to_sequence_example(image, decoder, vocab):
   context = tf.train.Features(feature={
       "image/image_id": _int64_feature(image.image_id),
       "image/data": _bytes_feature(encoded_image),
-      "image/attr_data": _bytes_feature(image.attribute),
+      "image/attr_data": _float_feature(image.attribute),
   })
 
   assert len(image.captions) == 1
