@@ -134,8 +134,8 @@ class ShowAndTellModel(object):
     if self.mode == "inference":
       # In inference mode, images and inputs are fed via placeholders.
       image_feed = tf.placeholder(dtype=tf.string, shape=[], name="image_feed")
-      attr_feed = tf.placeholder(dtype=tf.string, 
-                                 shape=[self.attr_length],
+      attr_feed = tf.placeholder(dtype=tf.float32, 
+                                 shape=[self.config.attr_length], # self.config.attr_length
                                  name="attr_feed")
       input_feed = tf.placeholder(dtype=tf.int64,
                                   shape=[None],  # batch_size
@@ -143,12 +143,14 @@ class ShowAndTellModel(object):
 
       # Process image and insert batch dimensions.
       images = tf.expand_dims(self.process_image(image_feed), 0)
-      print('[DEBUG]build_inputs: images dtype is',images.dtype)
+      # print('[DEBUG]build_inputs: images dtype is',images.dtype)
       input_seqs = tf.expand_dims(input_feed, 1)
-      input_attrs = tf.expand_dims(attr_feed, 1) #[1000] -> [1000, 1]
+      # input_attrs = attr_feed
+      input_attrs = tf.expand_dims(attr_feed, 0) #[1000] -> [1000, 1]
+      print('[DEBUG]build_inputs: input_attrs shape is', input_attrs.get_shape())
 
       # No target sequences or input mask in inference mode.
-      target_seqs = Noneinpuuinininpu
+      target_seqs = None
       input_mask = None
     else:
       # Prefetch serialized SequenceExample protos.
@@ -207,7 +209,10 @@ class ShowAndTellModel(object):
         self.images,
         trainable=self.train_inception,
         is_training=self.is_training())
-
+   
+    print('[DEBUG]build_image_embeddings: inception_output shape is', 
+      inception_output.get_shape()) # (1，2048)
+ 
     # 根据name返回一个收集器中所收集的值的列表
     self.inception_variables = tf.get_collection(
         tf.GraphKeys.GLOBAL_VARIABLES, scope="InceptionV3")
@@ -224,7 +229,8 @@ class ShowAndTellModel(object):
 
     # Save the embedding size in the graph.
     tf.constant(self.config.embedding_size, name="embedding_size")
-
+    print('[DEBUG]build_image_embeddings: image_embeddings shape is', 
+      image_embeddings.get_shape()) # (1, 512)
     self.image_embeddings = image_embeddings
 
   def build_seq_embeddings(self):
@@ -256,8 +262,6 @@ class ShowAndTellModel(object):
       self.attr_embeddings
     """
     with tf.variable_scope("attr_embedding"), tf.device("/cpu:0") as scope:
-      # print('[DEBUG]build_attr_embeddings:', self.input_attrs.get_shape())
-      # print('[DEBUG]build_attr_embeddings:', tf.expand_dims(self.input_attrs, 1).get_shape())
       attr_embeddings = tf.contrib.layers.fully_connected(
           # inputs=tf.expand_dims(self.input_attrs, 1),
           inputs=self.input_attrs, 
@@ -269,6 +273,7 @@ class ShowAndTellModel(object):
 
     # Save the embedding size in the graph.
     # tf.constant(self.config.embedding_size, name="embedding_size")
+    print('[DEBUG]build_attr_embeddings: attr_embeddings shape is', attr_embeddings.get_shape())
     self.attr_embeddings = attr_embeddings
 
   def build_model(self):
