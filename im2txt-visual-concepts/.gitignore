@@ -1,0 +1,11 @@
+bazel*
+# bazel-genfiles
+# bazel-im2txt-visual-concepts
+# bazel-out
+# bazel-testlogs
+
+im2txt/data/inception_v3.ckpt
+im2txt/data/mscoco-visual-concepts/
+im2txt/data/readTFRecord.py
+im2txt/model/
+

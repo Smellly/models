@@ -138,7 +138,7 @@ class CaptionGenerator(object):
     self.max_caption_length = max_caption_length
     self.length_normalization_factor = length_normalization_factor
 
-  def beam_search(self, sess, encoded_image):
+  def beam_search(self, sess, encoded_image, attribute):
     """Runs beam search caption generation on a single image.
 
     Args:
@@ -149,7 +149,7 @@ class CaptionGenerator(object):
       A list of Caption sorted by descending score.
     """
     # Feed in the image to get the initial state.
-    initial_state = self.model.feed_image(sess, encoded_image)
+    initial_state = self.model.feed_image(sess, encoded_image, attribute)
 
     initial_beam = Caption(
         sentence=[self.vocab.start_id],

@@ -21,9 +21,7 @@ from __future__ import print_function
 import math
 import os
 import json
-
-from tqdm import tqdm
-from ast import literal_eval
+import threading
 
 import tensorflow as tf
 
@@ -43,7 +41,8 @@ tf.flags.DEFINE_string("input_files", "",
                        "of image files.")
 tf.flags.DEFINE_string("output_files", "",
                        "validation set saving path.")
-
+tf.flags.DEFINE_integer("num_threads", 8,
+                        "Number of threads to preprocess the images.")
 tf.logging.set_verbosity(tf.logging.INFO)
 
 def getValID(path):
@@ -60,6 +59,28 @@ def getValAttr(path):
     filename_to_attribute[filename] = p 
   return filename_to_attribute
   
+def process(thread_index, filenames, ranges, img_path, generator, vocab, save_path):
+  results = []
+  for item in filenames[ranges[thread_index][0]:ranges[thread_index][1]]:
+    filename = img_path + item['file_name']
+    # print(filename)
+    with tf.gfile.GFile(filename, "r") as f:
+      image = f.read()
+    attribute = filename_to_attribute[item['file_name']]
+    captions = generator.beam_search(sess, image, attribute)
+    ppl = [math.exp(x.logprob) for x in captions]
+    caption = captions[ppl.index(min(ppl))]
+    sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
+    sentence = " ".join(sentence)
+    results.append({"image_id":item['id'], "caption":sentence})
+
+  with open(save_path.replace('.json', str(thread_index)+'.json'), 'w') as f:
+      json.dump(results, f)
+
+  print("%s: Thread %d finished processing all %d image caption generation." %
+          (datetime.now(), thread_index, len(filenames)))
+
+      
 def main(_):
   # Build the inference graph.
   g = tf.Graph()
@@ -77,7 +98,7 @@ def main(_):
 
   filenames = getValID(annos_path)
   filename_to_attribute = getValAttr(attrs_path)
-
+  
   tf.logging.info("Running caption generation on %d files matching %s",
                   len(filenames), FLAGS.input_files)
 
@@ -91,21 +112,42 @@ def main(_):
     # available beam search parameters.
     generator = caption_generator.CaptionGenerator(model, vocab)
 
-    for item in tqdm(filenames):
-      filename = img_path + item['file_name']
-      # print(filename)
-      with tf.gfile.GFile(filename, "r") as f:
-        image = f.read()
-      attribute = filename_to_attribute[item['file_name']]
-      captions = generator.beam_search(sess, image, attribute)
-      ppl = [math.exp(x.logprob) for x in captions]
-      caption = captions[ppl.index(min(ppl))]
-      sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
-      sentence = " ".join(sentence)
-      results.append({"image_id":item['id'], "caption":sentence})
-    
-    with open(save_path, 'w') as f:
-      json.dump(results, f)
+    # Break the images into num_threads batches. Batch i is defined as
+    # images[ranges[i][0]:ranges[i][1]].
+    num_threads = FLAGS.num_threads
+    # supposed we have 20 images and 5 threads
+    # np.linspace(0, 20, 6).astype(np.int) = array([ 0,  4,  8, 12, 16, 20])
+    spacing = np.linspace(0, len(images), num_threads + 1).astype(np.int)
+    ranges = []
+    threads = []
+    for i in xrange(len(spacing) - 1):
+      ranges.append([spacing[i], spacing[i + 1]])
+
+    # Create a mechanism for monitoring when all threads are finished.
+    coord = tf.train.Coordinator()
+
+    # Launch a thread for each batch.
+    print("Launching %d threads for spacings: %s" % (num_threads, ranges))
+    for thread_index in xrange(len(ranges)):
+      args = (thread_index, filenames, ranges, img_path, generator, vocab, save_path)
+      t = threading.Thread(target=process, args=args)
+      t.start()
+      threads.append(t)
+
+    # Wait for all the threads to terminate.
+    coord.join(threads)
+
+    for thread_index in xrange(len(ranges)):
+      with open(save_path.replace('.json', str(thread_index)+'.json'), 'r') as f:
+        results.extend(json.load(f))
+
+    with open(save_path, 'r') as f:
+        json.dump(results, f)
+
+    print("%s: Finished processing all %d image caption generation in data set '%s'." %
+          (datetime.now(), len(filenames), img_path))
+
+
 
 if __name__ == "__main__":
   tf.app.run()
