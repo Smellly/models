@@ -1,20 +1,20 @@
 bazel*
 # bazel-genfiles
-# bazel-inceptionv3-visual-concepts
+# bazel-im2txt-visual-concepts
 # bazel-out
 # bazel-testlogs
 
-inceptionv3/data/inception_v3.ckpt
-inceptionv3/data/mscoco-visual-concepts/
-inceptionv3/data/readTFRecord.py
-inceptionv3/data/blend_mscoco_with_flickr30/
-inceptionv3/data/flickr30/
-inceptionv3/data/inception/
-inceptionv3/data/resnet152/
-inceptionv3/data/mscoco/
+im2txt/data/inception_v3.ckpt
+im2txt/data/mscoco-visual-concepts/
+im2txt/data/readTFRecord.py
+im2txt/data/blend_mscoco_with_flickr30/
+im2txt/data/flickr30/
+im2txt/data/inception/
+im2txt/data/resnet152/
+im2txt/data/mscoco/
 
-inceptionv3/model/
-inceptionv3/results/
+im2txt/model/
+im2txt/results/
 
 inceptionv4/model/
 inceptionv4/results/

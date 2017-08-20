@@ -26,9 +26,9 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from im2txt.ops import image_embedding
-from im2txt.ops import image_processing
-from im2txt.ops import inputs as input_ops
+from resnet152.ops import image_embedding
+from resnet152.ops import image_processing
+from resnet152.ops import inputs as input_ops
 
 
 class ShowAndTellModel(object):

@@ -22,7 +22,8 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from tensorflow.contrib.slim.python.slim.nets.inception_v3 import inception_v3_base
+# from tensorflow.contrib.slim.python.slim.nets.inception_v3 import inception_v3_base
+from tensorflow.contrib.slim.python.slim.nets.resnet_v2 import resnet_v2_152
 
 slim = tf.contrib.slim
 
@@ -95,7 +96,8 @@ def inception_v3(images,
           activation_fn=tf.nn.relu,
           normalizer_fn=slim.batch_norm,
           normalizer_params=batch_norm_params):
-        net, end_points = inception_v3_base(images, scope=scope)
+        # net, end_points = inception_v3_base(images, scope=scope)
+        net, end_points = resnet_v2_152(images, is_training=False, scope=scope)
         with tf.variable_scope("logits"):
           shape = net.get_shape()
           net = slim.avg_pool2d(net, shape[1:3], padding="VALID", scope="pool")

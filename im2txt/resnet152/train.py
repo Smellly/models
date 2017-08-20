@@ -22,8 +22,8 @@ from __future__ import print_function
 import tensorflow as tf
 import os
 
-from im2txt import configuration
-from im2txt import show_and_tell_model
+from resnet152 import configuration
+from resnet152 import show_and_tell_model
 
 # modify in ../train.sh
 # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
