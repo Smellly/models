@@ -7,7 +7,7 @@ exports_files(["LICENSE"])
 package_group(
     name = "internal",
     packages = [
-        "//im2txt/...",
+        "//inceptionv3/...",
     ],
 )
 
@@ -66,9 +66,9 @@ py_library(
     srcs = ["show_and_tell_model.py"],
     srcs_version = "PY2AND3",
     deps = [
-        "//im2txt/ops:image_embedding",
-        "//im2txt/ops:image_processing",
-        "//im2txt/ops:inputs",
+        "//inceptionv3/ops:image_embedding",
+        "//inceptionv3/ops:image_processing",
+        "//inceptionv3/ops:inputs",
     ],
 )
 
@@ -88,7 +88,7 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         ":show_and_tell_model",
-        "//im2txt/inference_utils:inference_wrapper_base",
+        "//inceptionv3/inference_utils:inference_wrapper_base",
     ],
 )
 
@@ -119,8 +119,8 @@ py_binary(
     deps = [
         ":configuration",
         ":inference_wrapper",
-        "//im2txt/inference_utils:caption_generator",
-        "//im2txt/inference_utils:vocabulary",
+        "//inceptionv3/inference_utils:caption_generator",
+        "//inceptionv3/inference_utils:vocabulary",
     ],
 )
 
@@ -131,7 +131,7 @@ py_binary(
     deps = [
         ":configuration",
         ":inference_wrapper",
-        "//im2txt/inference_utils:caption_generator",
-        "//im2txt/inference_utils:vocabulary",
+        "//inceptionv3/inference_utils:caption_generator",
+        "//inceptionv3/inference_utils:vocabulary",
     ],
 )

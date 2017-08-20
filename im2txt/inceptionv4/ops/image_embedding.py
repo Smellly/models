@@ -22,7 +22,11 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from tensorflow.contrib.slim.python.slim.nets.inception_v4 import inception_v4_base
+# from tensorflow.contrib.slim.python.slim.nets.inception_v4 import inception_v4_base
+import sys
+sys.path.append('/home/smelly/projects/ic_model/slim/')
+sys.path.append('/home/smelly/projects/ic_model/slim/nets/')
+from inception_v4 import inception_v4_base
 
 slim = tf.contrib.slim
 
