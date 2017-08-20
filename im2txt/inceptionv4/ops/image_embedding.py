@@ -24,8 +24,8 @@ import tensorflow as tf
 
 # from tensorflow.contrib.slim.python.slim.nets.inception_v4 import inception_v4_base
 import sys
-sys.path.append('/home/smelly/projects/ic_model/slim/')
-sys.path.append('/home/smelly/projects/ic_model/slim/nets/')
+sys.path.append('/home/smelly/projects/ic_models/slim/')
+sys.path.append('/home/smelly/projects/ic_models/slim/nets/')
 from inception_v4 import inception_v4_base
 
 slim = tf.contrib.slim
@@ -99,7 +99,7 @@ def inception_v4(images,
           activation_fn=tf.nn.relu,
           normalizer_fn=slim.batch_norm,
           normalizer_params=batch_norm_params):
-        net, end_points = inception_v3_base(images, scope=scope)
+        net, end_points = inception_v4_base(images, scope=scope)
         with tf.variable_scope("logits"):
           shape = net.get_shape()
           net = slim.avg_pool2d(net, shape[1:3], padding="VALID", scope="pool")

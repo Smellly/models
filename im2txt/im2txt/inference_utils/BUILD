@@ -1,4 +1,4 @@
-package(default_visibility = ["//inceptionv3:internal"])
+package(default_visibility = ["//im2txt:internal"])
 
 licenses(["notice"])  # Apache 2.0
 
