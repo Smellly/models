@@ -90,7 +90,7 @@ class TrainingConfig(object):
     self.optimizer = "Adam" # "SGD"
 
     # Learning rate for the initial phase of training.
-    self.initial_learning_rate = 0.001 # 2.0
+    self.initial_learning_rate = 0.00001 # 2.0
     self.learning_rate_decay_factor = 0.5
     self.num_epochs_per_decay = 8.0
 
