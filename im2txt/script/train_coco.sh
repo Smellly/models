@@ -21,7 +21,7 @@ bazel-bin/im2txt/train \
   --inception_checkpoint_file="${INCEPTION_CHECKPOINT}" \
   --train_dir="${MODEL_DIR}/adam" \
   --train_inception=false \
-  --number_of_steps=1000000
+  --number_of_steps=2000000
 
 # You can further improve the performance of the model 
 # by running a second training phase to jointly fine-tune 
