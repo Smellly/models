@@ -8,4 +8,10 @@ im2txt/data/inception_v3.ckpt
 im2txt/data/mscoco-visual-concepts/
 im2txt/data/readTFRecord.py
 im2txt/model/
+im2txt/results/
 
+ATT/data/inception_v3.ckpt
+ATT/data/mscoco-visual-concepts/
+ATT/data/readTFRecord.py
+ATT/model/
+ATT/results/
