@@ -68,6 +68,7 @@ def main(unused_argv):
     model = show_and_tell_model.ShowAndTellModel(
         model_config, mode="train", train_inception=FLAGS.train_inception)
     model.build()
+    
 
     # Set up the learning rate.
     learning_rate_decay_fn = None

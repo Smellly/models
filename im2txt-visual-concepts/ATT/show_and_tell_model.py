@@ -145,9 +145,8 @@ class ShowAndTellModel(object):
       images = tf.expand_dims(self.process_image(image_feed), 0)
       # print('[DEBUG]build_inputs: images dtype is',images.dtype)
       input_seqs = tf.expand_dims(input_feed, 1)
-      # input_attrs = attr_feed
-      input_attrs = tf.expand_dims(attr_feed, 0) #[1000] -> [1000, 1]
-      print('[DEBUG]build_inputs: input_attrs shape is', input_attrs.get_shape())
+      input_attrs = tf.expand_dims(attr_feed, 0) #[1000] -> [1, 1000]
+      # print('[DEBUG]build_inputs: input_attrs shape is', input_attrs.get_shape())
 
       # No target sequences or input mask in inference mode.
       target_seqs = None
@@ -210,8 +209,8 @@ class ShowAndTellModel(object):
         trainable=self.train_inception,
         is_training=self.is_training())
    
-    print('[DEBUG]build_image_embeddings: inception_output shape is', 
-      inception_output.get_shape()) # (1，2048)
+    # print('[DEBUG]build_image_embeddings: inception_output shape is', 
+    #   inception_output.get_shape()) # (1，2048)
  
     # 根据name返回一个收集器中所收集的值的列表
     self.inception_variables = tf.get_collection(
@@ -229,8 +228,8 @@ class ShowAndTellModel(object):
 
     # Save the embedding size in the graph.
     tf.constant(self.config.embedding_size, name="embedding_size")
-    print('[DEBUG]build_image_embeddings: image_embeddings shape is', 
-      image_embeddings.get_shape()) # (1, 512)
+    # print('[DEBUG]build_image_embeddings: image_embeddings shape is', 
+    # image_embeddings.get_shape()) # (1, 512)
     self.image_embeddings = image_embeddings
 
   def build_seq_embeddings(self):
@@ -250,6 +249,8 @@ class ShowAndTellModel(object):
       # Looks up ids in a list of embedding tensors
       seq_embeddings = tf.nn.embedding_lookup(embedding_map, self.input_seqs)
 
+    # [batch_size, sequence_length, embedding_size]
+    # [32, ?, 512]
     self.seq_embeddings = seq_embeddings
 
   def build_attr_embeddings(self):
@@ -273,7 +274,7 @@ class ShowAndTellModel(object):
 
     # Save the embedding size in the graph.
     # tf.constant(self.config.embedding_size, name="embedding_size")
-    print('[DEBUG]build_attr_embeddings: attr_embeddings shape is', attr_embeddings.get_shape())
+    # print('[DEBUG]build_attr_embeddings: attr_embeddings shape is', attr_embeddings.get_shape())
     self.attr_embeddings = attr_embeddings
 
   def build_model(self):
@@ -305,19 +306,10 @@ class ShowAndTellModel(object):
 
       # init the LSTM　
       # Return zero-filled state tensor(s).
-      minus_one_state = lstm_cell.zero_state(
-          batch_size=self.attr_embeddings.get_shape()[0], dtype=tf.float32)
-      
-      '''
       zero_state = lstm_cell.zero_state(
           batch_size=self.image_embeddings.get_shape()[0], dtype=tf.float32)
       _, initial_state = lstm_cell(self.image_embeddings, zero_state)
-      '''
-      # Feed the attribute embeddins to set the initial LSTM state.
-      _, zero_state = lstm_cell(self.attr_embeddings, minus_one_state)
-      # Feed the image embeddings to set the initial LSTM state.
-      _, initial_state = lstm_cell(self.image_embeddings, zero_state)
-
+      
       # Allow the LSTM variables to be reused.
       lstm_scope.reuse_variables()
 
@@ -332,9 +324,11 @@ class ShowAndTellModel(object):
                                     name="state_feed")
         state_tuple = tf.split(value=state_feed, num_or_size_splits=2, axis=1)
 
+        inputs = tf.squeeze(self.seq_embeddings, axis=[1]) + self.seq_embeddings
+        print('[DEBEG]build model:', tf.squeeze(self.seq_embeddings, axis=[1]).get_shape())
         # Run a single LSTM step.
         lstm_outputs, state_tuple = lstm_cell(
-            inputs=tf.squeeze(self.seq_embeddings, axis=[1]),
+            inputs=inputs,
             state=state_tuple)
 
         # Concatentate the resulting state.
@@ -342,8 +336,22 @@ class ShowAndTellModel(object):
       else:
         # Run the batch of sequence embeddings through the LSTM.
         sequence_length = tf.reduce_sum(self.input_mask, 1)
+        # [batch_size, sequence_length, embedding_size] + [batch_size, embedding_size]
+        # print(type(self.seq_embeddings))
+        # print(self.seq_embeddings.get_shape())
+        # print(type(sequence_length))
+        # print(sequence_length.get_shape())
+
+        inputs = self.seq_embeddings + \
+                 tf.reshape(
+                    tf.tile(
+                        self.attr_embeddings, 
+                        [1, tf.shape(self.seq_embeddings)[1]]),
+                    [tf.shape(self.seq_embeddings)[0], 
+                        tf.shape(self.seq_embeddings)[1], 
+                        self.config.embedding_size])
         lstm_outputs, _ = tf.nn.dynamic_rnn(cell=lstm_cell,
-                                            inputs=self.seq_embeddings,
+                                            inputs=inputs,
                                             sequence_length=sequence_length,
                                             initial_state=initial_state,
                                             dtype=tf.float32,
