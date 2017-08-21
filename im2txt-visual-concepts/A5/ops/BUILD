@@ -1,4 +1,4 @@
-package(default_visibility = ["//ATT:internal"])
+package(default_visibility = ["//A5:internal"])
 
 licenses(["notice"])  # Apache 2.0
 

@@ -5,18 +5,18 @@ MSCOCO_DIR="${HOME}/projects/ic_models/im2txt-visual-concepts/im2txt/data/mscoco
 INCEPTION_CHECKPOINT="${HOME}/projects/ic_models/im2txt-visual-concepts/im2txt/data/inception_v3.ckpt"
 
 # Directory to save the model.
-MODEL_DIR="${HOME}/projects/ic_models/im2txt-visual-concepts/ATT/model"
+MODEL_DIR="${HOME}/projects/ic_models/im2txt-visual-concepts/A5/model"
 
 # Build the model.
 cd ${HOME}/projects/ic_models/im2txt-visual-concepts
-bazel build -c opt //ATT/...
+bazel build -c opt //A5/...
 
 # Ignore GPU devices (only necessary if your GPU is currently memory
 # constrained, for example, by running the training script).
 export CUDA_VISIBLE_DEVICES=0
 
 # Run the training script.
-bazel-bin/ATT/train \
+bazel-bin/A5/train \
   --input_file_pattern="${MSCOCO_DIR}/train-?????-of-00256" \
   --inception_checkpoint_file="${INCEPTION_CHECKPOINT}" \
   --train_dir="${MODEL_DIR}/adam" \

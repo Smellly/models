@@ -7,7 +7,7 @@ exports_files(["LICENSE"])
 package_group(
     name = "internal",
     packages = [
-        "//ATT/...",
+        "//A5/...",
     ],
 )
 
@@ -52,9 +52,9 @@ py_library(
     srcs = ["show_and_tell_model.py"],
     srcs_version = "PY2AND3",
     deps = [
-        "//ATT/ops:image_embedding",
-        "//ATT/ops:image_processing",
-        "//ATT/ops:inputs",
+        "//A5/ops:image_embedding",
+        "//A5/ops:image_processing",
+        "//A5/ops:inputs",
     ],
 )
 
@@ -74,7 +74,7 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         ":show_and_tell_model",
-        "//ATT/inference_utils:inference_wrapper_base",
+        "//A5/inference_utils:inference_wrapper_base",
     ],
 )
 
@@ -105,8 +105,8 @@ py_binary(
     deps = [
         ":configuration",
         ":inference_wrapper",
-        "//ATT/inference_utils:caption_generator",
-        "//ATT/inference_utils:vocabulary",
+        "//A5/inference_utils:caption_generator",
+        "//A5/inference_utils:vocabulary",
     ],
 )
 
@@ -117,8 +117,8 @@ py_binary(
     deps = [
         ":configuration",
         ":inference_wrapper",
-        "//ATT/inference_utils:caption_generator",
-        "//ATT/inference_utils:vocabulary",
+        "//A5/inference_utils:caption_generator",
+        "//A5/inference_utils:vocabulary",
     ],
 )
 
@@ -129,7 +129,7 @@ py_binary(
     deps = [
         ":configuration",
         ":inference_wrapper",
-        "//ATT/inference_utils:caption_generator",
-        "//ATT/inference_utils:vocabulary",
+        "//A5/inference_utils:caption_generator",
+        "//A5/inference_utils:vocabulary",
     ],
 )

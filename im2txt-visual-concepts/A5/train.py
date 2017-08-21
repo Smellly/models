@@ -22,8 +22,8 @@ from __future__ import print_function
 import tensorflow as tf
 import os
 
-from ATT import configuration
-from ATT import show_and_tell_model
+from A5 import configuration
+from A5 import show_and_tell_model
 
 # modify in ../train.sh
 # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
