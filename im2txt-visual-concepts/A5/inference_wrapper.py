@@ -21,8 +21,8 @@ from __future__ import print_function
 
 
 
-from im2txt import show_and_tell_model
-from im2txt.inference_utils import inference_wrapper_base
+from A5 import show_and_tell_model
+from A5.inference_utils import inference_wrapper_base
 
 
 class InferenceWrapper(inference_wrapper_base.InferenceWrapperBase):
@@ -36,17 +36,18 @@ class InferenceWrapper(inference_wrapper_base.InferenceWrapperBase):
     model.build()
     return model
 
-  def feed_image(self, sess, encoded_image, attribute):
+  def feed_image(self, sess, encoded_image):
     initial_state = sess.run(fetches="lstm/initial_state:0",
-                             feed_dict={"image_feed:0": encoded_image,
-                                        "attr_feed:0": attribute})
+                             feed_dict={"image_feed:0": encoded_image})
+    #                                     "attr_feed:0": attribute})
     return initial_state
 
-  def inference_step(self, sess, input_feed, state_feed):
+  def inference_step(self, sess, input_feed, state_feed, attribute):
     softmax_output, state_output = sess.run(
         fetches=["softmax:0", "lstm/state:0"],
         feed_dict={
             "input_feed:0": input_feed,
+            "attr_feed:0": attribute,
             "lstm/state_feed:0": state_feed,
         })
     return softmax_output, state_output, None

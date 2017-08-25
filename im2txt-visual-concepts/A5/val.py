@@ -27,10 +27,10 @@ from ast import literal_eval
 
 import tensorflow as tf
 
-from im2txt import configuration
-from im2txt import inference_wrapper
-from im2txt.inference_utils import caption_generator
-from im2txt.inference_utils import vocabulary
+from A5 import configuration
+from A5 import inference_wrapper
+from A5.inference_utils import caption_generator
+from A5.inference_utils import vocabulary
 
 FLAGS = tf.flags.FLAGS
 
@@ -63,6 +63,7 @@ def getValAttr(path):
 def main(_):
   # Build the inference graph.
   g = tf.Graph()
+  tf.reset_default_graph()
   with g.as_default():
     model = inference_wrapper.InferenceWrapper()
     restore_fn = model.build_graph_from_config(configuration.ModelConfig(),

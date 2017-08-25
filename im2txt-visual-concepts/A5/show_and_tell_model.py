@@ -146,7 +146,7 @@ class ShowAndTellModel(object):
       # print('[DEBUG]build_inputs: images dtype is',images.dtype)
       input_seqs = tf.expand_dims(input_feed, 1)
       input_attrs = tf.expand_dims(attr_feed, 0) #[1000] -> [1, 1000]
-      # print('[DEBUG]build_inputs: input_attrs shape is', input_attrs.get_shape())
+      print('[DEBUG]build_inputs: input_attrs shape is', input_attrs.get_shape())
 
       # No target sequences or input mask in inference mode.
       target_seqs = None
@@ -274,7 +274,7 @@ class ShowAndTellModel(object):
 
     # Save the embedding size in the graph.
     # tf.constant(self.config.embedding_size, name="embedding_size")
-    # print('[DEBUG]build_attr_embeddings: attr_embeddings shape is', attr_embeddings.get_shape())
+    print('[DEBUG]build_attr_embeddings: attr_embeddings shape is', attr_embeddings.get_shape())
     self.attr_embeddings = attr_embeddings
 
   def build_model(self):
@@ -324,8 +324,18 @@ class ShowAndTellModel(object):
                                     name="state_feed")
         state_tuple = tf.split(value=state_feed, num_or_size_splits=2, axis=1)
 
-        inputs = tf.squeeze(self.seq_embeddings, axis=[1]) + self.seq_embeddings
-        print('[DEBEG]build model:', tf.squeeze(self.seq_embeddings, axis=[1]).get_shape())
+        print('[DEBEG]build model seq_embedding:', tf.squeeze(self.seq_embeddings, axis=[1]).get_shape())
+        print('[DEBEG]build model attr_embedings:', self.attr_embeddings.get_shape())
+
+        # inputs = inputs + tf.reshape(
+        #                     tf.tile(
+        #                         self.attr_embeddings,
+        #                         [tf.shape(inputs)[0], 1]),
+        #                     [tf.shape(inputs)[0],
+        #                         tf.shape(inputs)[1]])
+        inputs = tf.squeeze(self.seq_embeddings, axis=[1]) + self.attr_embeddings
+        print('[DEBEG]build model inputs:', inputs.get_shape())
+
         # Run a single LSTM step.
         lstm_outputs, state_tuple = lstm_cell(
             inputs=inputs,
@@ -337,10 +347,6 @@ class ShowAndTellModel(object):
         # Run the batch of sequence embeddings through the LSTM.
         sequence_length = tf.reduce_sum(self.input_mask, 1)
         # [batch_size, sequence_length, embedding_size] + [batch_size, embedding_size]
-        # print(type(self.seq_embeddings))
-        # print(self.seq_embeddings.get_shape())
-        # print(type(sequence_length))
-        # print(sequence_length.get_shape())
 
         inputs = self.seq_embeddings + \
                  tf.reshape(

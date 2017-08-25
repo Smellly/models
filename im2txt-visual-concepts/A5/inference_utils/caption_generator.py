@@ -149,7 +149,7 @@ class CaptionGenerator(object):
       A list of Caption sorted by descending score.
     """
     # Feed in the image to get the initial state.
-    initial_state = self.model.feed_image(sess, encoded_image, attribute)
+    initial_state = self.model.feed_image(sess, encoded_image)
 
     initial_beam = Caption(
         sentence=[self.vocab.start_id],
@@ -167,10 +167,14 @@ class CaptionGenerator(object):
       partial_captions.reset()
       input_feed = np.array([c.sentence[-1] for c in partial_captions_list])
       state_feed = np.array([c.state for c in partial_captions_list])
+      # print("[DEBUG] beam beam_search input_feed :", state_feed.shape)
+      # print("[DEBUG] beam beam_search state_feed :", state_feed.shape)
+      # print("[DEBUG] beam beam_search attribute :", attribute.shape)
 
       softmax, new_states, metadata = self.model.inference_step(sess,
                                                                 input_feed,
-                                                                state_feed)
+                                                                state_feed,
+                                                                attribute)
 
       for i, partial_caption in enumerate(partial_captions_list):
         word_probabilities = softmax[i]

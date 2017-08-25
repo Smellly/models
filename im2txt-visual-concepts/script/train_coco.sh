@@ -13,13 +13,13 @@ bazel build -c opt //A5/...
 
 # Ignore GPU devices (only necessary if your GPU is currently memory
 # constrained, for example, by running the training script).
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=3
 
 # Run the training script.
 bazel-bin/A5/train \
   --input_file_pattern="${MSCOCO_DIR}/train-?????-of-00256" \
   --inception_checkpoint_file="${INCEPTION_CHECKPOINT}" \
-  --train_dir="${MODEL_DIR}/adam" \
+  --train_dir="${MODEL_DIR}/adam2" \
   --train_inception=false \
   --number_of_steps=1200000
 
