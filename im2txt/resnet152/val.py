@@ -26,10 +26,10 @@ from tqdm import tqdm
 
 import tensorflow as tf
 
-from im2txt import configuration
-from im2txt import inference_wrapper
-from im2txt.inference_utils import caption_generator
-from im2txt.inference_utils import vocabulary
+from resnet152 import configuration
+from resnet152 import inference_wrapper
+from resnet152.inference_utils import caption_generator
+from resnet152.inference_utils import vocabulary
 
 FLAGS = tf.flags.FLAGS
 

@@ -1,2 +1,3 @@
-workspace(name = "inceptionv4")
-#workspace(name = "im2txt")
+#workspace(name = "resnet152")
+#workspace(name = "inceptionv4")
+workspace(name = "im2txt")

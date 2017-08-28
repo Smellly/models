@@ -37,7 +37,7 @@ def inception_v3(images,
                  use_batch_norm=True,
                  batch_norm_params=None,
                  add_summaries=True,
-                 scope="InceptionV3"):
+                 scope="resnet_v2_152"):
   """Builds an Inception V3 subgraph for image embeddings.
 
   Args:
