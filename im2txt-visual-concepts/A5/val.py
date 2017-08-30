@@ -86,27 +86,55 @@ def main(_):
     # Load the model from checkpoint.
     restore_fn(sess)
     results = []
+    # record image which have been process
+    record = []
+    savefreq = 400
+    record_path = save_path.replace('results', 'records')
+    print('record_path : %s'%record_path)
+    try:
+      with open(record_path, 'r') as f:
+        record = json.load(f)
+    except:
+      print('no record to read')
 
     # Prepare the caption generator. Here we are implicitly using the default
     # beam search parameters. See caption_generator.py for a description of the
     # available beam search parameters.
     generator = caption_generator.CaptionGenerator(model, vocab)
+    epoch = 0
 
     for item in tqdm(filenames):
-      filename = img_path + item['file_name']
-      # print(filename)
-      with tf.gfile.GFile(filename, "r") as f:
-        image = f.read()
-      attribute = filename_to_attribute[item['file_name']]
-      captions = generator.beam_search(sess, image, attribute)
-      ppl = [math.exp(x.logprob) for x in captions]
-      caption = captions[ppl.index(min(ppl))]
-      sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
-      sentence = " ".join(sentence)
-      results.append({"image_id":item['id'], "caption":sentence})
+      if item['id'] in record:
+        continue
+      try:
+        filename = img_path + item['file_name']
+        # print(filename)
+        with tf.gfile.GFile(filename, "r") as f:
+          image = f.read()
+        attribute = filename_to_attribute[item['file_name']]
+        captions = generator.beam_search(sess, image, attribute)
+        ppl = [math.exp(x.logprob) for x in captions]
+        caption = captions[ppl.index(min(ppl))]
+        sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
+        sentence = " ".join(sentence)
+        results.append({"image_id":item['id'], "caption":sentence})
+        record.append(item['id'])
+        if epoch % savefreq == 0:
+            print('%d times temporally saving...'%(int(epoch/savefreq)))
+            with open(save_path, 'w') as f:
+              json.dump(results, f)
+            with open(record_path, 'w') as f:
+              json.dump(record, f)
+      except:
+        print('filename %s is broken'%item['file_name'])
+      finally:
+        epoch += 1
     
     with open(save_path, 'w') as f:
       json.dump(results, f)
+    with open(record_path, 'w') as f:
+      json.dump(record, f)
+
 
 if __name__ == "__main__":
   tf.app.run()
