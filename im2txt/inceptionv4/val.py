@@ -31,7 +31,7 @@ from inceptionv4 import inference_wrapper
 from inceptionv4.inference_utils import caption_generator
 from inceptionv4.inference_utils import vocabulary
 
-FLAGS = tf.flags.FLAGS
+FLAGS = tf.app.flags.FLAGS
 
 tf.flags.DEFINE_string("checkpoint_path", "",
                        "Model checkpoint file or directory containing a "
@@ -64,6 +64,13 @@ def main(_):
 
   img_path, annos_path = FLAGS.input_files.split(",")
   save_path = FLAGS.output_files
+  record_path = save_path.replace('results', 'records')
+  print('save_path : %s'%save_path)
+  print('record_path : %s'%record_path)
+  results = []
+  records = []
+  epoch = 0
+  savefreq = 400
   # print(img_path)
   # print(annos_path)
   filenames = getValID(annos_path)
@@ -72,10 +79,15 @@ def main(_):
   tf.logging.info("Running caption generation on %d files matching %s",
                   len(filenames), FLAGS.input_files)
 
+  try:
+    with open(record_path, 'r' ) as f:
+      records = json.load(f)
+  except:
+    print('no records to read')
+
   with tf.Session(graph=g) as sess:
     # Load the model from checkpoint.
     restore_fn(sess)
-    results = []
 
     # Prepare the caption generator. Here we are implicitly using the default
     # beam search parameters. See caption_generator.py for a description of the
@@ -83,19 +95,35 @@ def main(_):
     generator = caption_generator.CaptionGenerator(model, vocab)
 
     for item in tqdm(filenames):
+      if item['id'] in records:
+        continue
       filename = img_path + item['file_name']
       # print(filename)
       with tf.gfile.GFile(filename, "r") as f:
         image = f.read()
-      captions = generator.beam_search(sess, image)
-      ppl = [math.exp(x.logprob) for x in captions]
-      caption = captions[ppl.index(min(ppl))]
-      sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
-      sentence = " ".join(sentence)
-      results.append({"image_id":item['id'], "caption":sentence})
+      try: 
+        captions = generator.beam_search(sess, image)
+        ppl = [math.exp(x.logprob) for x in captions]
+        caption = captions[ppl.index(min(ppl))]
+        sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
+        sentence = " ".join(sentence)
+        results.append({"image_id":item['id'], "caption":sentence})
+        records.append(item['id'])
+      except:
+        print('filename %s is broken'%item['fine_name'])
+      finally:
+        epoch += 1
+        if epoch % savefreq == 0:
+          print('%d times saving'%(int(epoch/savefreq)))
+          with open(save_path, 'w') as f:
+            json.dump(results, f)
+          with open(record_path, 'w') as f:
+            json.dump(records, f)
     
     with open(save_path, 'w') as f:
       json.dump(results, f)
+    with open(record_path, 'w') as f:
+      json.dump(records, f)
 
 if __name__ == "__main__":
   tf.app.run()

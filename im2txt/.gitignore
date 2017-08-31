@@ -15,9 +15,12 @@ im2txt/data/mscoco/
 
 im2txt/model/
 im2txt/results/
+im2txt/records/
 
 inceptionv4/model/
 inceptionv4/results/
+inceptionv4/records/
 
 resnet152/model/
 resnet152/results/
+resnet152/records/

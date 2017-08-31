@@ -23,6 +23,7 @@ import os
 import json
 
 from tqdm import tqdm
+from ast import literal_eval
 
 import tensorflow as tf
 
@@ -50,9 +51,21 @@ def getValID(path):
     raw = json.load(f)
   return raw['images']
 
+'''
+def getValAttr(path):
+  with open(path, 'r') as f:
+    attr_data = json.load(f)
+  filename_to_attribute = {}
+  for filename, attribute in attr_data.iteritems():
+    p = [literal_eval(i.split(':')[1])[0] for i in attribute]
+    filename_to_attribute[filename] = p 
+  return filename_to_attribute
+'''
+  
 def main(_):
   # Build the inference graph.
   g = tf.Graph()
+  tf.reset_default_graph()
   with g.as_default():
     model = inference_wrapper.InferenceWrapper()
     restore_fn = model.build_graph_from_config(configuration.ModelConfig(),
@@ -64,11 +77,9 @@ def main(_):
 
   img_path, annos_path = FLAGS.input_files.split(",")
   save_path = FLAGS.output_files
-  # print(img_path)
-  # print(annos_path)
+
   filenames = getValID(annos_path)
-  # print(type(filenames)) # list
-  # print(len(filenames))
+
   tf.logging.info("Running caption generation on %d files matching %s",
                   len(filenames), FLAGS.input_files)
 
@@ -76,26 +87,55 @@ def main(_):
     # Load the model from checkpoint.
     restore_fn(sess)
     results = []
+    # record image which have been process
+    records = []
+    savefreq = 10000
+    record_path = save_path.replace('results', 'records')
+    print('record_path : %s'%record_path)
+    print('save_path : %s'%save_path)
+    try:
+      with open(record_path, 'r') as f:
+        record = json.load(f)
+    except:
+      print('no record to read')
 
     # Prepare the caption generator. Here we are implicitly using the default
     # beam search parameters. See caption_generator.py for a description of the
     # available beam search parameters.
     generator = caption_generator.CaptionGenerator(model, vocab)
+    epoch = 0
 
     for item in tqdm(filenames):
+      if item['id'] in records:
+        continue
       filename = img_path + item['file_name']
       # print(filename)
       with tf.gfile.GFile(filename, "r") as f:
         image = f.read()
-      captions = generator.beam_search(sess, image)
-      ppl = [math.exp(x.logprob) for x in captions]
-      caption = captions[ppl.index(min(ppl))]
-      sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
-      sentence = " ".join(sentence)
-      results.append({"image_id":item['id'], "caption":sentence})
+      try:
+        captions = generator.beam_search(sess, image)
+        ppl = [math.exp(x.logprob) for x in captions]
+        caption = captions[ppl.index(min(ppl))]
+        sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
+        sentence = " ".join(sentence)
+        results.append({"image_id":item['id'], "caption":sentence})
+        records.append(item['id'])
+      except:
+        print('filename %s is broken'%item['file_name'])
+      finally:
+        epoch += 1
+        if epoch % savefreq == 0:
+            print('%d times temporally saving...'%(int(epoch/savefreq)))
+            with open(save_path, 'w') as f:
+              json.dump(results, f)
+            with open(record_path, 'w') as f:
+              json.dump(records, f)
     
     with open(save_path, 'w') as f:
       json.dump(results, f)
+    with open(record_path, 'w') as f:
+      json.dump(records, f)
+
 
 if __name__ == "__main__":
   tf.app.run()

@@ -106,11 +106,11 @@ def main(_):
     for item in tqdm(filenames):
       if item['id'] in record:
         continue
+      filename = img_path + item['file_name']
+      # print(filename)
+      with tf.gfile.GFile(filename, "r") as f:
+        image = f.read()
       try:
-        filename = img_path + item['file_name']
-        # print(filename)
-        with tf.gfile.GFile(filename, "r") as f:
-          image = f.read()
         attribute = filename_to_attribute[item['file_name']]
         captions = generator.beam_search(sess, image, attribute)
         ppl = [math.exp(x.logprob) for x in captions]
@@ -119,16 +119,16 @@ def main(_):
         sentence = " ".join(sentence)
         results.append({"image_id":item['id'], "caption":sentence})
         record.append(item['id'])
-        if epoch % savefreq == 0:
-            print('%d times temporally saving...'%(int(epoch/savefreq)))
-            with open(save_path, 'w') as f:
-              json.dump(results, f)
-            with open(record_path, 'w') as f:
-              json.dump(record, f)
       except:
         print('filename %s is broken'%item['file_name'])
       finally:
         epoch += 1
+        if epoch % savefreq == 0:
+          print('%d times temporally saving...'%(int(epoch/savefreq)))
+          with open(save_path, 'w') as f:
+            json.dump(results, f)
+          with open(record_path, 'w') as f:
+            json.dump(record, f)
     
     with open(save_path, 'w') as f:
       json.dump(results, f)
