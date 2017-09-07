@@ -9,9 +9,11 @@ im2txt/data/mscoco-visual-concepts/
 im2txt/data/readTFRecord.py
 im2txt/model/
 im2txt/results/
+im2txt/records/
 
 A5/data/inception_v3.ckpt
 A5/data/mscoco-visual-concepts/
 A5/data/readTFRecord.py
 A5/model/
 A5/results/
+A5/records/
