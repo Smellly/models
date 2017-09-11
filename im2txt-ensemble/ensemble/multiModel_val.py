@@ -20,10 +20,7 @@ from __future__ import print_function
 
 import math
 import os
-import json
 
-from tqdm import tqdm
-from ast import literal_eval
 
 import tensorflow as tf
 
@@ -41,39 +38,26 @@ tf.flags.DEFINE_string("vocab_file", "", "Text file containing the vocabulary.")
 tf.flags.DEFINE_string("input_files", "",
                        "File pattern or comma-separated list of file patterns "
                        "of image files.")
-tf.flags.DEFINE_string("output_files", "",
-                       "validation set saving path.")
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-def getValID(path):
-  with open(path, 'r') as f:
-    raw = json.load(f)
-  return raw['images']
 
-'''
-def getValAttr(path):
-  with open(path, 'r') as f:
-    attr_data = json.load(f)
-  filename_to_attribute = {}
-  for filename, attribute in attr_data.iteritems():
-    p = [literal_eval(i.split(':')[1])[0] for i in attribute]
-    filename_to_attribute[filename] = p 
-  return filename_to_attribute
-'''
-  
 def main(_):
-  ensemble = [1, 2]
+  ensemble = [1]
+  num = len(ensemble)
   models = []
+  generators = []
   for en in ensemble:
     # Build the inference graph.
     g = tf.Graph()
     tf.reset_default_graph()
     d = {}
+    # print(FLAGS.checkpoint_path)
     with g.as_default():
       d['model'] = inference_wrapper.InferenceWrapper()
-      d['restore_fn'] = model.build_graph_from_config(configuration.ModelConfig(),
-                                                 FLAGS.checkpoint_path + str(i))
+      d['restore_fn'] = d['model'].build_graph_from_config(
+                                                configuration.ModelConfig(),
+                                                FLAGS.checkpoint_path + str(en))
     g.finalize()
     d['g'] = g
     models.append(d)
@@ -81,73 +65,98 @@ def main(_):
   # Create the vocabulary.
   vocab = vocabulary.Vocabulary(FLAGS.vocab_file)
 
-  img_path, annos_path = FLAGS.input_files.split(",")
-  save_path = FLAGS.output_files
-
-  filenames = getValID(annos_path)
-
+  filenames = []
+  print(FLAGS.input_files.split(","))
+  print(FLAGS.input_files.split(",")[0])
+  print(tf.gfile.Glob(FLAGS.input_files.split(",")[0]))
+  for file_pattern in FLAGS.input_files.split(","):
+    filenames.extend(tf.gfile.Glob(file_pattern))
   tf.logging.info("Running caption generation on %d files matching %s",
                   len(filenames), FLAGS.input_files)
 
-  for model in models:
+  for ind, model in enumerate(models):
     with tf.Session(graph=model['g']) as sess:
       # Load the model from checkpoint.
       model['restore_fn'](sess)
-      results = []
-      # record image which have been process
-      records = []
-      savefreq = 10000
-      record_path = save_path.replace('results', 'records')
-      print('record_path : %s'%record_path)
-      print('save_path : %s'%save_path)
-      try:
-        with open(record_path, 'r') as f:
-          record = json.load(f)
-      except:
-        print('no record to read')
-
       # Prepare the caption generator. Here we are implicitly using the default
       # beam search parameters. See caption_generator.py for a description of the
       # available beam search parameters.
-      generator = caption_generator.CaptionGenerator(model, vocab)
-      epoch = 0
+      models[ind]['generator'] = caption_generator.CaptionGenerator(model, vocab)
 
-      for item in tqdm(filenames):
-        if item['id'] in records:
-          continue
-        filename = img_path + item['file_name']
-        # print(filename)
-        with tf.gfile.GFile(filename, "r") as f:
-          image = f.read()
-        try:
-        # todo:
-        # all need to change
-        # for each model:
-        #   get probability of each modal
-        #   average (trick)
-        #   manually beam search
-          captions = generator.beam_search(sess, image)
-          ppl = [math.exp(x.logprob) for x in captions]
-          caption = captions[ppl.index(min(ppl))]
-          sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
-          sentence = " ".join(sentence)
-          results.append({"image_id":item['id'], "caption":sentence})
-          records.append(item['id'])
-        except:
-          print('filename %s is broken'%item['file_name'])
-        finally:
-          epoch += 1
-          if epoch % savefreq == 0:
-              print('%d times temporally saving...'%(int(epoch/savefreq)))
-              with open(save_path, 'w') as f:
-                json.dump(results, f)
-              with open(record_path, 'w') as f:
-                json.dump(records, f)
-      
-    with open(save_path, 'w') as f:
-      json.dump(results, f)
-    with open(record_path, 'w') as f:
-      json.dump(records, f)
+ 
+  for filename in filenames:
+    with tf.gfile.GFile(filename, "r") as f:
+      image = f.read()
+
+    # generate the first word
+    p0 = 0.
+
+    for ind, model in enumerate(models):
+      with tf.Session(graph=model['g']) as sess:
+        # Load the model from checkpoint.
+        model['restore_fn'](sess)
+    
+        ((softmax, new_states, metadata), 
+          captions_tuple) = model['generator'].beam_search_first_word(sess, image)
+      models[ind]['state'] = new_states
+      models[ind]['metadata_set'] = metadata
+      models[ind]['captions_tuple'] = captions_tuple
+      maxy0 = np.amax(softmax[0])
+      # for numerical stability shift into good numerical range
+      e0 = np.exp(softmax[0] - maxy0) 
+      p0 = p0 + e0 / np.sum(e0)
+
+    p0 = p0/num
+
+    for model in models:
+      with tf.Session(graph=model['g']) as sess:
+        # Load the model from checkpoint.
+        model['restore_fn'](sess)
+        captions = model['generator'].\
+                          beam_search_prob2word(sess, 
+                                                (p0, model['state'], model['metadata']), 
+                                                model['captions_tuple'])
+    # generate the rest n words
+    max_caption_length = 20
+    
+    for _ in range(max_caption_length - 1):
+      p1 = 0.
+      for ind, model in enumerate(models):
+        with tf.Session(graph=model['g']) as sess:
+          model['restore_fn'](sess)
+          
+          if len(captions == 1):
+            captions.extract(sort=True)
+            break
+
+          ((softmax, new_states, metadata), 
+            captions_tuple) = model['generator'].beam_search_one_step(sess, captions)
+
+          maxy1 = np.amax(softmax[0])
+          # for numerical stability shift into good numerical range
+          e1 = np.exp(softmax[0] - maxy1) 
+          p1 = p1 + e1 / np.sum(e1)
+
+          models[ind]['state'] = new_states
+          models[ind]['metadata_set'] = metadata
+          models[ind]['captions_tuple'] = captions_tuple
+
+    p1 = p1/num
+    for model in models:
+      with tf.Session(graph=model['g']) as sess:
+        # Load the model from checkpoint.
+        model['restore_fn'](sess)
+        captions = model['generator'].\
+                beam_search_prob2word(sess, 
+                                      (p1, model['state'], model['metadata']), 
+                                      model['captions_tuple'])
+
+    print("Captions for image %s:" % os.path.basename(filename))
+    for i, caption in enumerate(captions):
+      # Ignore begin and end words.
+      sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
+      sentence = " ".join(sentence)
+      print("  %d) %s (p=%f)" % (i, sentence, math.exp(caption.logprob)))
 
 
 if __name__ == "__main__":

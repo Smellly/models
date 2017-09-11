@@ -99,7 +99,7 @@ def main(_):
       attribute = filename_to_attribute[item['file_name']]
       captions = generator.beam_search(sess, image, attribute)
       ppl = [math.exp(x.logprob) for x in captions]
-      caption = captions[ppl.index(min(ppl))]
+      caption = captions[ppl.index(max(ppl))]
       sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
       sentence = " ".join(sentence)
       results.append({"image_id":item['id'], "caption":sentence})
