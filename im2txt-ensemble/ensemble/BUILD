@@ -123,8 +123,8 @@ py_binary(
 )
 
 py_binary(
-    name = "val_multithread",
-    srcs = ["val_multithread.py"],
+    name = "multiModel_run_inference",
+    srcs = ["multiModel_run_inference.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":configuration",
