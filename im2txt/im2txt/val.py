@@ -115,7 +115,7 @@ def main(_):
       try:
         captions = generator.beam_search(sess, image)
         ppl = [math.exp(x.logprob) for x in captions]
-        caption = captions[ppl.index(min(ppl))]
+        caption = captions[ppl.index(max(ppl))]
         sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
         sentence = " ".join(sentence)
         results.append({"image_id":item['id'], "caption":sentence})
@@ -123,13 +123,13 @@ def main(_):
       except:
         print('filename %s is broken'%item['file_name'])
       finally:
-        epoch += 1
         if epoch % savefreq == 0:
             print('%d times temporally saving...'%(int(epoch/savefreq)))
             with open(save_path, 'w') as f:
               json.dump(results, f)
             with open(record_path, 'w') as f:
               json.dump(records, f)
+        epoch += 1
     
     with open(save_path, 'w') as f:
       json.dump(results, f)
