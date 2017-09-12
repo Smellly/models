@@ -293,7 +293,8 @@ class ShowAndTellModel(object):
     # This LSTM cell has biases and outputs tanh(new_c) * sigmoid(o), but the
     # modified LSTM in the "Show and Tell" paper has no biases and outputs
     # new_c * sigmoid(o).
-    lstm_cell = tf.contrib.rnn.BasicLSTMCell(
+    # lstm_cell = tf.contrib.rnn.BasicLSTMCell(
+    lstm_cell = tf.contrib.rnn.core_rnn_cell.BasicLSTMCell(
         num_units=self.config.num_lstm_units, state_is_tuple=True)
     if self.mode == "train":
       lstm_cell = tf.contrib.rnn.DropoutWrapper(

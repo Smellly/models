@@ -1,0 +1,13 @@
+bazel*
+# bazel-genfiles
+# bazel-ensemble-visual-concepts
+# bazel-out
+# bazel-testlogs
+
+ensemble/data/inception_v3.ckpt
+ensemble/data/mscoco-visual-concepts/
+ensemble/data/readTFRecord.py
+ensemble/model/
+ensemble/results/
+ensemble/records/
+

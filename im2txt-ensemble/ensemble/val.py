@@ -27,10 +27,10 @@ from ast import literal_eval
 
 import tensorflow as tf
 
-from A5 import configuration
-from A5 import inference_wrapper
-from A5.inference_utils import caption_generator
-from A5.inference_utils import vocabulary
+from im2txt import configuration
+from im2txt import inference_wrapper
+from im2txt.inference_utils import caption_generator
+from im2txt.inference_utils import vocabulary
 
 FLAGS = tf.flags.FLAGS
 
@@ -51,6 +51,7 @@ def getValID(path):
     raw = json.load(f)
   return raw['images']
 
+'''
 def getValAttr(path):
   with open(path, 'r') as f:
     attr_data = json.load(f)
@@ -59,6 +60,7 @@ def getValAttr(path):
     p = [literal_eval(i.split(':')[1])[0] for i in attribute]
     filename_to_attribute[filename] = p 
   return filename_to_attribute
+'''
   
 def main(_):
   # Build the inference graph.
@@ -73,11 +75,10 @@ def main(_):
   # Create the vocabulary.
   vocab = vocabulary.Vocabulary(FLAGS.vocab_file)
 
-  img_path, annos_path, attrs_path = FLAGS.input_files.split(",")
+  img_path, annos_path = FLAGS.input_files.split(",")
   save_path = FLAGS.output_files
 
   filenames = getValID(annos_path)
-  filename_to_attribute = getValAttr(attrs_path)
 
   tf.logging.info("Running caption generation on %d files matching %s",
                   len(filenames), FLAGS.input_files)
@@ -87,10 +88,11 @@ def main(_):
     restore_fn(sess)
     results = []
     # record image which have been process
-    record = []
-    savefreq = 400
+    records = []
+    savefreq = 10000
     record_path = save_path.replace('results', 'records')
     print('record_path : %s'%record_path)
+    print('save_path : %s'%save_path)
     try:
       with open(record_path, 'r') as f:
         record = json.load(f)
@@ -104,36 +106,35 @@ def main(_):
     epoch = 0
 
     for item in tqdm(filenames):
-      if item['id'] in record:
+      if item['id'] in records:
         continue
       filename = img_path + item['file_name']
       # print(filename)
       with tf.gfile.GFile(filename, "r") as f:
         image = f.read()
       try:
-        attribute = filename_to_attribute[item['file_name']]
-        captions = generator.beam_search(sess, image, attribute)
+        captions = generator.beam_search(sess, image)
         ppl = [math.exp(x.logprob) for x in captions]
-        caption = captions[ppl.index(max(ppl))]
+        caption = captions[ppl.index(min(ppl))]
         sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
         sentence = " ".join(sentence)
         results.append({"image_id":item['id'], "caption":sentence})
-        record.append(item['id'])
+        records.append(item['id'])
       except:
         print('filename %s is broken'%item['file_name'])
       finally:
         epoch += 1
         if epoch % savefreq == 0:
-          print('%d times temporally saving...'%(int(epoch/savefreq)))
-          with open(save_path, 'w') as f:
-            json.dump(results, f)
-          with open(record_path, 'w') as f:
-            json.dump(record, f)
+            print('%d times temporally saving...'%(int(epoch/savefreq)))
+            with open(save_path, 'w') as f:
+              json.dump(results, f)
+            with open(record_path, 'w') as f:
+              json.dump(records, f)
     
     with open(save_path, 'w') as f:
       json.dump(results, f)
     with open(record_path, 'w') as f:
-      json.dump(record, f)
+      json.dump(records, f)
 
 
 if __name__ == "__main__":
