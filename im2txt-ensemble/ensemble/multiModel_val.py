@@ -76,6 +76,8 @@ def main(_):
       d['restore_fn'] = d['model'].build_graph_from_config(
                                                 configuration.ModelConfig(),
                                                 model_ckpt.model_checkpoint_path)
+      # Sessions created in this scope will run operations from `g`.
+      d['sess'] = tf.Session()
     g.finalize()
     d['g'] = g
     models.append(d)
@@ -100,15 +102,6 @@ def main(_):
   tf.logging.info("Running caption generation on %d files matching %s",
                   len(filenames), FLAGS.input_files)
 
-  for ind, model in enumerate(models):
-    with tf.Session(graph=model['g']) as sess:
-      # Load the model from checkpoint.
-      model['restore_fn'](sess)
-      # Prepare the caption generator. Here we are implicitly using the default
-      # beam search parameters. See caption_generator.py for a description of the
-      # available beam search parameters.
-      models[ind]['generator'] = caption_generator.CaptionGenerator(model, vocab)
-
   tf.logging.info("Loading filenames")
   for filename in filenames:
     with tf.gfile.GFile(filename, "r") as f:
@@ -119,37 +112,36 @@ def main(_):
 
     print("DEBUG: Generate the first word") 
     for ind, model in enumerate(models):
-      with tf.Session(graph=model['g']) as sess:
-        # Load the model from checkpoint.
-        model['restore_fn'](sess)
-        # Prepare the caption generator. Here we are implicitly using the default
-        # beam search parameters. See caption_generator.py for a description of the
-        # available beam search parameters.
-        models[ind]['generator'] = caption_generator.CaptionGenerator(d['model'], vocab)
-        print()
-        print("DEBUG: model %d rebuild"%ind) 
-        print("DEBUG: in model %d generates the first word"%ind) 
-        print()
-        ((softmax, new_states, metadata), 
-          captions_tuple) = model['generator'].beam_search_first_word(sess, image)
+      # Load the model from checkpoint.
+      model['restore_fn'](model['sess'])
+      # Prepare the caption generator. Here we are implicitly using the default
+      # beam search parameters. See caption_generator.py for a description of the
+      # available beam search parameters.
+      models[ind]['generator'] = caption_generator.CaptionGenerator(d['model'], vocab)
+      print()
+      print("DEBUG: model %d rebuild"%ind) 
+      print("DEBUG: in model %d generates the first word"%ind) 
+      print()
+      ((softmax, new_states, metadata), 
+        captions_tuple) = model['generator'].beam_search_first_word(model['sess'], image)
 
-        models[ind]['state'] = new_states
-        models[ind]['metadata'] = metadata # None actually
-        models[ind]['captions_tuple'] = captions_tuple
-        # print(type(softmax), len(softmax[0]), softmax) 
-        # <type 'numpy.ndarray'> 12000(word dict length)
-        
-        # print('DEBUG:new_states', new_states)
-        # print('DEBUG:metadata', metadata)
-        maxy0 = np.amax(softmax) 
-        print(type(maxy0), maxy0)
-        '''
-        # <type 'numpy.float32'> 0.855502
-        # for numerical stability shift into good numerical range
-        e0 = np.exp(softmax - maxy0) 
-        p0 = p0 + e0 / np.sum(e0)
-        '''
-        p0 = softmax
+      models[ind]['state'] = new_states
+      models[ind]['metadata'] = metadata # None actually
+      models[ind]['captions_tuple'] = captions_tuple
+      # print(type(softmax), len(softmax[0]), softmax) 
+      # <type 'numpy.ndarray'> 12000(word dict length)
+      
+      # print('DEBUG:new_states', new_states)
+      # print('DEBUG:metadata', metadata)
+      maxy0 = np.amax(softmax) 
+      print(type(maxy0), maxy0)
+      '''
+      # <type 'numpy.float32'> 0.855502
+      # for numerical stability shift into good numerical range
+      e0 = np.exp(softmax - maxy0) 
+      p0 = p0 + e0 / np.sum(e0)
+      '''
+      p0 = softmax
     p0 = p0/num
     print(np.amax(p0))
     # print(type(p0), len(p0), p0) 
@@ -169,31 +161,30 @@ def main(_):
       p1 = 0.
       
       for ind, model in enumerate(models):
-        with tf.Session(graph=model['g']) as sess:
-          model['restore_fn'](sess)
-          print()
-          print("DEBUG: in model %d generates the rest words %d times"%(ind, ii)) 
-          print()
-          # print(type(model['captions']))
-          if len(model['captions']) == 1:
-            captions = model['captions'][0].extract(sort=True)
-            break # maybe with bugs
+        # model['restore_fn'](model['sess'])
+        print()
+        print("DEBUG: in model %d generates the rest words %d times"%(ind, ii)) 
+        print()
+        # print(type(model['captions']))
+        if len(model['captions']) == 1:
+          captions = model['captions'][0].extract(sort=True)
+          break # maybe with bugs
 
-          ((softmax, new_states, metadata), 
-            captions_tuple) = model['generator'].beam_search_one_step(sess, model['captions'])
+        ((softmax, new_states, metadata), 
+          captions_tuple) = model['generator'].beam_search_one_step(model['sess'], model['captions'])
 
-          # print(type(softmax), len(softmax[0]), softmax) 
-          maxy1 = np.amax(softmax)
-          # print(type(maxy1), maxy1)
-          '''
-          # for numerical stability shift into good numerical range
-          e1 = np.exp(softmax - maxy1) 
-          p1 = p1 + e1 / np.sum(e1)
-          '''
-          p1 = softmax
-          models[ind]['state'] = new_states
-          models[ind]['metadata'] = metadata
-          models[ind]['captions_tuple'] = captions_tuple
+        # print(type(softmax), len(softmax[0]), softmax) 
+        maxy1 = np.amax(softmax)
+        # print(type(maxy1), maxy1)
+        '''
+        # for numerical stability shift into good numerical range
+        e1 = np.exp(softmax - maxy1) 
+        p1 = p1 + e1 / np.sum(e1)
+        '''
+        p1 = softmax
+        models[ind]['state'] = new_states
+        models[ind]['metadata'] = metadata
+        models[ind]['captions_tuple'] = captions_tuple
       else:
         # after all the for then we will go on 
         p1 = p1/num
@@ -210,7 +201,9 @@ def main(_):
       # But never output a mixture of complete and partial captions because a
       # partial caption could have a higher score than all the complete captions.
       if not complete_captions.size():
-        captions = partial_captions
+        captions = partial_captions.extract(sort=True)
+      else:
+        captions = complete_captions.extract(sort=True)
 
     print("Captions for image %s:" % os.path.basename(filename))
     for i, caption in enumerate(captions):
