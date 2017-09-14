@@ -1,17 +1,17 @@
-path = 'ensemble/model/5/'
-NEW_CHECKPOINT_FILE = path + "new_model.ckpt-1168803"
-OLD_CHECKPOINT_FILE = path +     "model.ckpt-1168803"
+path = 'ensemble/model/2/'
+NEW_CHECKPOINT_FILE = path + "new_tf_version/model.ckpt-993077"
+OLD_CHECKPOINT_FILE = path + "old_tf_version/model.ckpt-993077"
 
 import tensorflow as tf
-# vars_to_rename = {
-#     "lstm/basic_lstm_cell/weights": "lstm/basic_lstm_cell/kernel",
-#     "lstm/basic_lstm_cell/biases": "lstm/basic_lstm_cell/bias",
-# }
-
 vars_to_rename = {
-    "lstm/basic_lstm_cell/kernel":"lstm/basic_lstm_cell/weights",
-    "lstm/basic_lstm_cell/bias" : "lstm/basic_lstm_cell/biases",
-        }
+    "lstm/basic_lstm_cell/weights": "lstm/basic_lstm_cell/kernel",
+    "lstm/basic_lstm_cell/biases": "lstm/basic_lstm_cell/bias",
+}
+
+# vars_to_rename = {
+#     "lstm/basic_lstm_cell/kernel":"lstm/basic_lstm_cell/weights",
+#     "lstm/basic_lstm_cell/bias" : "lstm/basic_lstm_cell/biases",
+#         }
 new_checkpoint_vars = {}
 reader = tf.train.NewCheckpointReader(OLD_CHECKPOINT_FILE)
 for old_name in reader.get_variable_to_shape_map():

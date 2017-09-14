@@ -17,7 +17,7 @@ bazel build -c opt //ensemble:multiModel_run_inference
 
 # Ignore GPU devices (only necessary if your GPU is currently memory
 # constrained, for example, by running the training script).
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=3
 
 # Run inference to generate captions.
 bazel-bin/ensemble/multiModel_run_inference \
