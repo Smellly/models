@@ -63,6 +63,8 @@ def main(_):
       d['restore_fn'] = d['model'].build_graph_from_config(
                                                 configuration.ModelConfig(),
                                                 model_ckpt.model_checkpoint_path)
+      # Sessions created in this scope will run operations from `g`.
+      d['sess'] = tf.Session()
       # d['model_saver']  = tf.train.import_meta_graph(graph_def_file)
       # d['model_ckpt'] = tf.train.get_checkpoint_state(saver_def_file)
       # assert(d['model_ckpt'] != None)
@@ -86,35 +88,35 @@ def main(_):
                   len(filenames), FLAGS.input_files)
 
   for ind, model in enumerate(models):
-    with tf.Session(graph=model['g']) as sess:
-      # Load the model from checkpoint.
-      # model['restore_fn'](sess)
-      model['restore_fn'](sess)#, d['model_ckpt'].model_checkpoint_path)
-      # Prepare the caption generator. Here we are implicitly using the default
-      # beam search parameters. See caption_generator.py for a description of the
-      # available beam search parameters.
-      models[ind]['generator'] = caption_generator.CaptionGenerator(d['model'], vocab)
-      print("INFO: model %d rebuild"%ind)
+    # with tf.Session(graph=model['g']) as sess:
+    # Load the model from checkpoint.
+    # model['restore_fn'](sess)
+    model['restore_fn'](model['sess'])#, d['model_ckpt'].model_checkpoint_path)
+    # Prepare the caption generator. Here we are implicitly using the default
+    # beam search parameters. See caption_generator.py for a description of the
+    # available beam search parameters.
+    models[ind]['generator'] = caption_generator.CaptionGenerator(d['model'], vocab)
+    print("DEBUG: model %d rebuild"%ind)
  
   tf.logging.info("Loading")
   for filename in filenames:
     with tf.gfile.GFile(filename, "r") as f:
       image = f.read()
 
-    for ind, model in enumerate(models):
-      with tf.Session(graph=model['g']) as sess:
-        # Load the model from checkpoint.
-        model['restore_fn'](sess)#, d['model_ckpt'].model_checkpoint_path)
-        
-        print("INFO: model %d beam search"%ind)
-        captions = model['generator'].beam_search(sess, image)
+    # with tf.Session() as sess:
+    for ind, model in enumerate(models): 
+      # Load the model from checkpoint.
+      model['restore_fn'](model['sess'])#, d['model_ckpt'].model_checkpoint_path)
+      
+      print("DEBUG: model %d beam search"%ind)
+      captions = model['generator'].beam_search(model['sess'], image)
 
-        print("INFO: Model %d Captions for image %s:" % (ind, os.path.basename(filename)))
-        for i, caption in enumerate(captions):
-          # Ignore begin and end words.
-          sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
-          sentence = " ".join(sentence)
-          print("  %d) %s (p=%f)" % (i, sentence, math.exp(caption.logprob)))
+      print("DEBUG: Model %d Captions for image %s:" % (ind, os.path.basename(filename)))
+      for i, caption in enumerate(captions):
+        # Ignore begin and end words.
+        sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
+        sentence = " ".join(sentence)
+        print("  %d) %s (p=%f)" % (i, sentence, math.exp(caption.logprob)))
 
 if __name__ == "__main__":
   tf.app.run()
