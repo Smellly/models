@@ -13,14 +13,16 @@ IMAGE_FILE="${HOME}/projects/ic_models/im2txt-visual-concepts/im2txt/data/mscoco
 
 # Build the inference binary.
 cd ${HOME}/projects/ic_models/im2txt-ensemble
-bazel build -c opt //ensemble:multiModel_val
+# bazel build -c opt //ensemble:multiModel_val
+bazel build -c opt //ensemble:mm_val
 
 # Ignore GPU devices (only necessary if your GPU is currently memory
 # constrained, for example, by running the training script).
 export CUDA_VISIBLE_DEVICES=3
 
 # Run inference to generate captions.
-bazel-bin/ensemble/multiModel_val \
+# bazel-bin/ensemble/multiModel_val \
+bazel-bin/ensemble/mm_val \
   --checkpoint_path=${CHECKPOINT_PATH} \
   --vocab_file=${VOCAB_FILE} \
   --input_files=${IMAGE_FILE}

@@ -58,13 +58,13 @@ def getValAttr(path):
   return filename_to_attribute
 
 def main(_):
-  ensemble = [1]
+  ensemble = [1, 2]
   num = len(ensemble)
   models = []
   generators = []
   for en in ensemble:
-    print('ensemble model:', FLAGS.checkpoint_path + str(en))
     saver_def_file = FLAGS.checkpoint_path + str(en)
+    print('DEBUG:ensemble model:', saver_def_file)
     # Build the inference graph.
     g = tf.Graph()
     tf.reset_default_graph()
@@ -74,6 +74,7 @@ def main(_):
       d['model'] = inference_wrapper.InferenceWrapper()
       model_ckpt = tf.train.get_checkpoint_state(saver_def_file)
       assert(model_ckpt != None)
+      print('DEBUG:', model_ckpt)
       d['restore_fn'] = d['model'].build_graph_from_config(
                                                 configuration.ModelConfig(),
                                                 model_ckpt.model_checkpoint_path)
@@ -86,7 +87,8 @@ def main(_):
   # Create the vocabulary.
   vocab = vocabulary.Vocabulary(FLAGS.vocab_file)
   tf.logging.info("Generating Beam Search Model")
-  for m in models:
+  for ind, m in enumerate(models):
+    print('DEBUG:loading model %d:'%(ind+1))
     m['restore_fn'](m['sess'])
   generator = caption_generator.CaptionGenerator(models, vocab)
   # wait for full version of val
@@ -98,9 +100,9 @@ def main(_):
 
   filenames = []
   results = []
-  print('DEBUG', FLAGS.input_files.split(","))
-  print('DEBUG', FLAGS.input_files.split(",")[0])
-  print('DEBUG', tf.gfile.Glob(FLAGS.input_files.split(",")[0]))
+  print('DEBUG:', FLAGS.input_files.split(","))
+  print('DEBUG:', FLAGS.input_files.split(",")[0])
+  print('DEBUG:', tf.gfile.Glob(FLAGS.input_files.split(",")[0]))
 
   for file_pattern in FLAGS.input_files.split(","):
     filenames.extend(tf.gfile.Glob(file_pattern))

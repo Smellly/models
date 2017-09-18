@@ -68,7 +68,7 @@ def main(_):
     g = tf.Graph()
     tf.reset_default_graph()
     d = {}
-    # print(FLAGS.checkpoint_path)
+
     with g.as_default():
       d['model'] = inference_wrapper.InferenceWrapper()
       model_ckpt = tf.train.get_checkpoint_state(saver_def_file)
@@ -117,11 +117,9 @@ def main(_):
       # Prepare the caption generator. Here we are implicitly using the default
       # beam search parameters. See caption_generator.py for a description of the
       # available beam search parameters.
-      models[ind]['generator'] = caption_generator.CaptionGenerator(d['model'], vocab)
-      print()
+      models[ind]['generator'] = caption_generator.CaptionGenerator(model['model'], vocab)
       print("DEBUG: model %d rebuild"%ind) 
       print("DEBUG: in model %d generates the first word"%ind) 
-      print()
       ((softmax, new_states, metadata), 
         captions_tuple) = model['generator'].beam_search_first_word(model['sess'], image)
 
@@ -141,7 +139,7 @@ def main(_):
       e0 = np.exp(softmax - maxy0) 
       p0 = p0 + e0 / np.sum(e0)
       '''
-      p0 = softmax
+      p0 = p0 + softmax
     p0 = p0/num
     print(np.amax(p0))
     # print(type(p0), len(p0), p0) 
@@ -161,10 +159,7 @@ def main(_):
       p1 = 0.
       
       for ind, model in enumerate(models):
-        # model['restore_fn'](model['sess'])
-        print()
         print("DEBUG: in model %d generates the rest words %d times"%(ind, ii)) 
-        print()
         # print(type(model['captions']))
         if len(model['captions']) == 1:
           captions = model['captions'][0].extract(sort=True)
@@ -181,7 +176,7 @@ def main(_):
         e1 = np.exp(softmax - maxy1) 
         p1 = p1 + e1 / np.sum(e1)
         '''
-        p1 = softmax
+        p1 = p1 + softmax
         models[ind]['state'] = new_states
         models[ind]['metadata'] = metadata
         models[ind]['captions_tuple'] = captions_tuple

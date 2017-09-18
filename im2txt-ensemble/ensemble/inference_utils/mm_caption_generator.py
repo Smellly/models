@@ -87,8 +87,10 @@ class TopN(object):
     """Pushes a new element."""
     assert self._data is not None
     if len(self._data) < self._n:
+      # Push the value item onto the heap, maintaining the heap invariant.
       heapq.heappush(self._data, x)
     else:
+      # Pop and return the smallest item from the heap, maintaining the heap invariant. 
       heapq.heappushpop(self._data, x)
 
   def extract(self, sort=False):
@@ -157,6 +159,9 @@ class CaptionGenerator(object):
       A list of Caption sorted by descending score.
     """
     # Feed in the image to get the initial state.
+    partial_captions = TopN(self.beam_size)
+    complete_captions = TopN(self.beam_size)
+
     for ind, m in enumerate(self.models):
       initial_state = m['model'].feed_image(m['sess'], encoded_image)
 
@@ -166,34 +171,31 @@ class CaptionGenerator(object):
           logprob=0.0,
           score=0.0,
           metadata=[""])
-      partial_captions = TopN(self.beam_size)
+    
       partial_captions.push(initial_beam)
-      complete_captions = TopN(self.beam_size)
-
-      self.models[ind]['captions_tuple'] = (partial_captions, complete_captions)
+      # self.models[ind]['partial_captions'] = (partial_captions,)
 
     # Run beam search.
     for _ in range(self.max_caption_length - 1):
       p0 = 0.
-      partial_captions_list = []
-      for ind, m in enumerate(self.models):
-        partial_captions, complete_captions = m['captions_tuple']
-        partial_captions_list.extend(partial_captions.extract())
-        partial_captions.reset()
-        input_feed = np.array([c.sentence[-1] for c in partial_captions_list])
-        state_feed = np.array([c.state for c in partial_captions_list])
+      partial_captions_list = partial_captions.extract()
+      input_feed = np.array([c.sentence[-1] for c in partial_captions_list])
+      state_feed = np.array([c.state for c in partial_captions_list])
 
+      for ind, m in enumerate(self.models):
+        # partial_captions = m['partial_captions']
+        # partial_captions_list.extend(partial_captions.extract())
         softmax, new_states, metadata = m['model'].inference_step(m['sess'],
                                                                   input_feed,
                                                                   state_feed)
-        self.models[ind]['state'] = new_states
-        self.models[ind]['metadata'] = metadata # None actually
+        # self.models[ind]['state'] = new_states
+        # self.models[ind]['metadata'] = metadata # None actually
 
+      partial_captions.reset()
       p0 += softmax
       p0 /= self.num_models
 
       for i, partial_caption in enumerate(partial_captions_list):
-
         word_probabilities = p0[i]
         state = new_states[i]
         # For this partial caption, get the beam_size most probable next words.
@@ -207,17 +209,14 @@ class CaptionGenerator(object):
           sentence = partial_caption.sentence + [w]
           logprob = partial_caption.logprob + math.log(p)
           score = logprob
-          if metadata:
-            metadata_list = partial_caption.metadata + [metadata[i]]
-          else:
-            metadata_list = None
+
           if w == self.vocab.end_id:
             if self.length_normalization_factor > 0:
               score /= len(sentence)**self.length_normalization_factor
-            beam = Caption(sentence, state, logprob, score, metadata_list)
+            beam = Caption(sentence, state, logprob, score, None)
             complete_captions.push(beam)
           else:
-            beam = Caption(sentence, state, logprob, score, metadata_list)
+            beam = Caption(sentence, state, logprob, score, None)
             partial_captions.push(beam)
 
       if partial_captions.size() == 0:
