@@ -17,6 +17,12 @@ py_library(
 )
 
 py_library(
+    name = "mm_caption_generator",
+    srcs = ["mm_caption_generator.py"],
+    srcs_version = "PY2AND3",
+)
+
+py_library(
     name = "caption_generator",
     srcs = ["caption_generator.py"],
     srcs_version = "PY2AND3",
@@ -29,3 +35,4 @@ py_test(
         ":caption_generator",
     ],
 )
+

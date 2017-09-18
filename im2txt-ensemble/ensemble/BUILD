@@ -133,6 +133,20 @@ py_binary(
         "//ensemble/inference_utils:vocabulary",
     ],
 )
+
+py_binary(
+    name = "mm_val",
+    srcs = ["mm_val.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":configuration",
+        ":inference_wrapper",
+        "//ensemble/inference_utils:mm_caption_generator",
+        "//ensemble/inference_utils:caption_generator",
+        "//ensemble/inference_utils:vocabulary",
+    ],
+)
+
 py_binary(
     name = "multiModel_run_inference",
     srcs = ["multiModel_run_inference.py"],
