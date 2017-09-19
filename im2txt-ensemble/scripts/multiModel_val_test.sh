@@ -25,4 +25,5 @@ export CUDA_VISIBLE_DEVICES=3
 bazel-bin/ensemble/mm_val \
   --checkpoint_path=${CHECKPOINT_PATH} \
   --vocab_file=${VOCAB_FILE} \
-  --input_files=${IMAGE_FILE}
+  --input_files=${IMAGE_FILE} \
+  --debug_mode='debug'
