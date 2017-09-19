@@ -21,7 +21,6 @@ from __future__ import print_function
 import heapq
 import math
 
-
 import numpy as np
 
 '''
@@ -88,8 +87,10 @@ class TopN(object):
     """Pushes a new element."""
     assert self._data is not None
     if len(self._data) < self._n:
+      # Push the value item onto the heap, maintaining the heap invariant.
       heapq.heappush(self._data, x)
     else:
+      # Pop and return the smallest item from the heap, maintaining the heap invariant. 
       heapq.heappushpop(self._data, x)
 
   def extract(self, sort=False):
@@ -119,7 +120,7 @@ class CaptionGenerator(object):
   """Class to generate captions from an image-to-text model."""
 
   def __init__(self,
-               model,
+               models,
                vocab,
                beam_size=3,
                max_caption_length=20,
@@ -127,7 +128,8 @@ class CaptionGenerator(object):
     """Initializes the generator.
 
     Args:
-      model: Object encapsulating a trained image-to-text model. Must have
+      models: multiple models for ensemble. 
+        Object encapsulating a trained image-to-text model. Must have
         methods feed_image() and inference_step(). For example, an instance of
         InferenceWrapperBase.
       vocab: A Vocabulary object.
@@ -139,48 +141,62 @@ class CaptionGenerator(object):
         x > 0 then longer captions will be favored.
     """
     self.vocab = vocab
-    self.model = model
+    self.models = models
+    self.num_models = len(models)
 
     self.beam_size = beam_size
     self.max_caption_length = max_caption_length
     self.length_normalization_factor = length_normalization_factor
 
-  def beam_search(self, sess, encoded_image):
+  def beam_search(self, encoded_image):
     """Runs beam search caption generation on a single image.
 
     Args:
-      sess: TensorFlow Session object.
+      sesses: multiple TensorFlow Session objects.
       encoded_image: An encoded image string.
 
     Returns:
       A list of Caption sorted by descending score.
     """
     # Feed in the image to get the initial state.
-    initial_state = self.model.feed_image(sess, encoded_image)
-
-    initial_beam = Caption(
-        sentence=[self.vocab.start_id],
-        state=initial_state[0],
-        logprob=0.0,
-        score=0.0,
-        metadata=[""])
     partial_captions = TopN(self.beam_size)
-    partial_captions.push(initial_beam)
     complete_captions = TopN(self.beam_size)
+
+    for ind, m in enumerate(self.models):
+      initial_state = m['model'].feed_image(m['sess'], encoded_image)
+
+      initial_beam = Caption(
+          sentence=[self.vocab.start_id],
+          state=initial_state[0],
+          logprob=0.0,
+          score=0.0,
+          metadata=[""])
+    
+      partial_captions.push(initial_beam)
+      # self.models[ind]['partial_captions'] = (partial_captions,)
 
     # Run beam search.
     for _ in range(self.max_caption_length - 1):
+      p0 = 0.
       partial_captions_list = partial_captions.extract()
-      partial_captions.reset()
       input_feed = np.array([c.sentence[-1] for c in partial_captions_list])
       state_feed = np.array([c.state for c in partial_captions_list])
 
-      softmax, new_states, metadata = self.model.inference_step(sess,
-                                                                input_feed,
-                                                                state_feed)
+      for ind, m in enumerate(self.models):
+        # partial_captions = m['partial_captions']
+        # partial_captions_list.extend(partial_captions.extract())
+        softmax, new_states, metadata = m['model'].inference_step(m['sess'],
+                                                                  input_feed,
+                                                                  state_feed)
+        # self.models[ind]['state'] = new_states
+        # self.models[ind]['metadata'] = metadata # None actually
+
+      partial_captions.reset()
+      p0 += softmax
+      p0 /= self.num_models
 
       for i, partial_caption in enumerate(partial_captions_list):
-        word_probabilities = softmax[i]
+        word_probabilities = p0[i]
         state = new_states[i]
         # For this partial caption, get the beam_size most probable next words.
         words_and_probs = list(enumerate(word_probabilities))
@@ -193,18 +209,16 @@ class CaptionGenerator(object):
           sentence = partial_caption.sentence + [w]
           logprob = partial_caption.logprob + math.log(p)
           score = logprob
-          if metadata:
-            metadata_list = partial_caption.metadata + [metadata[i]]
-          else:
-            metadata_list = None
+
           if w == self.vocab.end_id:
             if self.length_normalization_factor > 0:
               score /= len(sentence)**self.length_normalization_factor
-            beam = Caption(sentence, state, logprob, score, metadata_list)
+            beam = Caption(sentence, state, logprob, score, None)
             complete_captions.push(beam)
           else:
-            beam = Caption(sentence, state, logprob, score, metadata_list)
+            beam = Caption(sentence, state, logprob, score, None)
             partial_captions.push(beam)
+
       if partial_captions.size() == 0:
         # We have run out of partial candidates; happens when beam_size = 1.
         break
@@ -216,114 +230,3 @@ class CaptionGenerator(object):
       complete_captions = partial_captions
 
     return complete_captions.extract(sort=True)
-
-  def beam_search_first_word(self, sess, encoded_image):
-    """Runs beam search caption generation on a single image.
-
-    first step take an encoded_image in and output first state of beam search
-
-    Args:
-      sess: TensorFlow Session object.
-      encoded_image: An encoded image string.
-
-    Returns:
-      A list of Caption sorted by descending score.
-    """
-    # Feed in the image to get the initial state.
-    initial_state = self.model.feed_image(sess, encoded_image)
-
-    initial_beam = Caption(
-        sentence=[self.vocab.start_id],
-        state=initial_state[0],
-        logprob=0.0,
-        score=0.0,
-        metadata=[""])
-    partial_captions = TopN(self.beam_size)
-    partial_captions.push(initial_beam)
-    complete_captions = TopN(self.beam_size)
-
-    # Run beam search one time.
-
-    # Extracts all elements from the TopN.
-    partial_captions_list = partial_captions.extract()
-    partial_captions.reset()
-    input_feed = np.array([c.sentence[-1] for c in partial_captions_list])
-    state_feed = np.array([c.state for c in partial_captions_list])
-
-    softmax, new_states, metadata = self.model.inference_step(sess,
-                                                              input_feed,
-                                                              state_feed)
-
-    return ((softmax, new_states, metadata), 
-            (partial_captions, partial_captions_list, complete_captions))
-
-
-  def beam_search_prob2word(self, inference_results, captions_tuple):
-
-    softmax, new_states, metadata = inference_results
-    partial_captions, partial_captions_list, complete_captions = captions_tuple
-
-    for i, partial_caption in enumerate(partial_captions_list):
-      word_probabilities = softmax[i]
-      state = new_states[i]
-      # For this partial caption, get the beam_size most probable next words.
-      words_and_probs = list(enumerate(word_probabilities))
-      words_and_probs.sort(key=lambda x: -x[1])
-      words_and_probs = words_and_probs[0:self.beam_size]
-      # Each next word gives a new partial caption.
-      for w, p in words_and_probs:
-        if p < 1e-12:
-          print('Avoid log(0).')
-          continue  # Avoid log(0).
-        sentence = partial_caption.sentence + [w]
-        logprob = partial_caption.logprob + math.log(p)
-        score = logprob
-        if metadata:
-          metadata_list = partial_caption.metadata + [metadata[i]]
-        else:
-          metadata_list = None
-        if w == self.vocab.end_id:
-          if self.length_normalization_factor > 0:
-            score /= len(sentence)**self.length_normalization_factor
-          beam = Caption(sentence, state, logprob, score, metadata_list)
-          complete_captions.push(beam)
-        else:
-          beam = Caption(sentence, state, logprob, score, metadata_list)
-          partial_captions.push(beam)
-
-    if partial_captions.size() == 0:
-      # We have run out of partial candidates; happens when beam_size = 1.
-      print('DEBUG: We have run out of partial candidates; happens when beam_size = 1.')
-      return (complete_captions,)
-
-    return (partial_captions, partial_captions_list, complete_captions)
-
-  def beam_search_one_step(self, sess, captions_tuple):
-    """Runs beam search caption generation on a single image.
-
-    Args:
-      sess: TensorFlow Session object.
-      partial_captions: An unfinished caption
-
-    Returns:
-      softmax, new_states, metadata
-    """
-
-    # Run beam search.
-    # for _ in range(self.max_caption_length - 1):
-    partial_captions, partial_captions_list, complete_captions = captions_tuple
-
-    partial_captions_list = partial_captions.extract()
-    partial_captions.reset()
-    input_feed = np.array([c.sentence[-1] for c in partial_captions_list])
-    state_feed = np.array([c.state for c in partial_captions_list])
-
-    softmax, new_states, metadata = self.model.inference_step(sess,
-                                                              input_feed,
-                                                              state_feed)
-
-    return ((softmax, new_states, metadata), 
-            (partial_captions, partial_captions_list, complete_captions))
-
-
-

@@ -20,13 +20,15 @@ from __future__ import print_function
 
 import math
 import os
+import numpy as np
 
+from tqdm import tqdm
 
 import tensorflow as tf
 
 from ensemble import configuration
 from ensemble import inference_wrapper
-from ensemble.inference_utils import caption_generator
+from ensemble.inference_utils import mm_caption_generator as caption_generator
 from ensemble.inference_utils import vocabulary
 
 FLAGS = tf.flags.FLAGS
@@ -41,82 +43,109 @@ tf.flags.DEFINE_string("input_files", "",
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
+def getValID(path):
+  with open(path, 'r') as f:
+    raw = json.load(f)
+  return raw['images']
+
+def getValAttr(path):
+  with open(path, 'r') as f:
+    attr_data = json.load(f)
+  filename_to_attribute = {}
+  for filename, attribute in attr_data.iteritems():
+    p = [literal_eval(i.split(':')[1])[0] for i in attribute]
+    filename_to_attribute[filename] = p 
+  return filename_to_attribute
 
 def main(_):
   ensemble = [1, 2]
   num = len(ensemble)
   models = []
   generators = []
-  
   for en in ensemble:
-    print('ensemble model:', FLAGS.checkpoint_path + str(en))
-    # graph_def_file = FLAGS.checkpoint_path + str(en) + '/model.ckpt-1000000.meta'
-    saver_def_file = FLAGS.checkpoint_path + str(en) 
+    saver_def_file = FLAGS.checkpoint_path + str(en)
+    print('DEBUG:ensemble model:', saver_def_file)
+    # Build the inference graph.
     g = tf.Graph()
     tf.reset_default_graph()
     d = {}
-    # print(FLAGS.checkpoint_path)
+
     with g.as_default():
       d['model'] = inference_wrapper.InferenceWrapper()
       model_ckpt = tf.train.get_checkpoint_state(saver_def_file)
       assert(model_ckpt != None)
+      print('DEBUG:', model_ckpt)
       d['restore_fn'] = d['model'].build_graph_from_config(
                                                 configuration.ModelConfig(),
                                                 model_ckpt.model_checkpoint_path)
       # Sessions created in this scope will run operations from `g`.
       d['sess'] = tf.Session()
-      # d['model_saver']  = tf.train.import_meta_graph(graph_def_file)
-      # d['model_ckpt'] = tf.train.get_checkpoint_state(saver_def_file)
-      # assert(d['model_ckpt'] != None)
-      # d['restore_fn'] = d['model_saver'].restore
-      
     g.finalize()
     d['g'] = g
     models.append(d)
 
   # Create the vocabulary.
   vocab = vocabulary.Vocabulary(FLAGS.vocab_file)
+  tf.logging.info("Generating Beam Search Model")
+  for ind, m in enumerate(models):
+    print('DEBUG:loading model %d:'%(ind+1))
+    m['restore_fn'](m['sess'])
+  generator = caption_generator.CaptionGenerator(models, vocab)
+  # wait for full version of val
+  # img_path, annos_path, attrs_path = FLAGS.input_files.split(",")
+  # save_path = FLAGS.output_files
+
+  # filenames = getValID(annos_path)
+  # filename_to_attribute = getValAttr(attrs_path)
 
   filenames = []
-  print(FLAGS.input_files.split(","))
-  print(FLAGS.input_files.split(",")[0])
-  print(tf.gfile.Glob(FLAGS.input_files.split(",")[0]))
+  results = []
+  print('DEBUG:', FLAGS.input_files.split(","))
+  print('DEBUG:', FLAGS.input_files.split(",")[0])
+  print('DEBUG:', tf.gfile.Glob(FLAGS.input_files.split(",")[0]))
 
   for file_pattern in FLAGS.input_files.split(","):
     filenames.extend(tf.gfile.Glob(file_pattern))
   tf.logging.info("Running caption generation on %d files matching %s",
                   len(filenames), FLAGS.input_files)
 
-  for ind, model in enumerate(models):
-    # with tf.Session(graph=model['g']) as sess:
-    # Load the model from checkpoint.
-    # model['restore_fn'](sess)
-    model['restore_fn'](model['sess'])#, d['model_ckpt'].model_checkpoint_path)
-    # Prepare the caption generator. Here we are implicitly using the default
-    # beam search parameters. See caption_generator.py for a description of the
-    # available beam search parameters.
-    models[ind]['generator'] = caption_generator.CaptionGenerator(d['model'], vocab)
-    print("DEBUG: model %d rebuild"%ind)
- 
-  tf.logging.info("Loading")
-  for filename in filenames:
+  tf.logging.info("Loading filenames")
+
+  for item in tqdm(filenames):
+    # if item['id'] in records:
+    #   continue
+    filename = item
+    # filename = img_path + item['file_name']
+    # print(filename)
     with tf.gfile.GFile(filename, "r") as f:
       image = f.read()
+    # try:
+    captions = generator.beam_search(image)
+    ppl = [math.exp(x.logprob) for x in captions]
+    caption = captions[ppl.index(max(ppl))]
+    sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
+    sentence = " ".join(sentence)
+    print('sentence:', sentence)
+    # results.append({"image_id":item['id'], "caption":sentence})
+    # records.append(item['id'])
+    # except:
+    #   pass
+  #     print('filename %s is broken'%item['file_name'])
+    # finally:
+    #   pass
+  #     epoch += 1
+  #     if epoch % savefreq == 0:
+  #         print('%d times temporally saving...'%(int(epoch/savefreq)))
+  #         with open(save_path, 'w') as f:
+  #           json.dump(results, f)
+  #         with open(record_path, 'w') as f:
+  #           json.dump(records, f)
+  
+  # with open(save_path, 'w') as f:
+  #   json.dump(results, f)
+  # with open(record_path, 'w') as f:
+  #   json.dump(records, f)
 
-    # with tf.Session() as sess:
-    for ind, model in enumerate(models): 
-      # Load the model from checkpoint.
-      model['restore_fn'](model['sess'])#, d['model_ckpt'].model_checkpoint_path)
-      
-      print("DEBUG: model %d beam search"%ind)
-      captions = model['generator'].beam_search(model['sess'], image)
-
-      print("DEBUG: Model %d Captions for image %s:" % (ind, os.path.basename(filename)))
-      for i, caption in enumerate(captions):
-        # Ignore begin and end words.
-        sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
-        sentence = " ".join(sentence)
-        print("  %d) %s (p=%f)" % (i, sentence, math.exp(caption.logprob)))
 
 if __name__ == "__main__":
   tf.app.run()
