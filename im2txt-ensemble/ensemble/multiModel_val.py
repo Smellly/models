@@ -57,7 +57,7 @@ def getValAttr(path):
 
 
 def main(_):
-  ensemble = [1]
+  ensemble = [2]
   num = len(ensemble)
   models = []
   generators = []
