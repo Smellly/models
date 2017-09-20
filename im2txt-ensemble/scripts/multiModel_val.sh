@@ -11,21 +11,20 @@ VOCAB_FILE="${HOME}/projects/ic_models/im2txt-visual-concepts/im2txt/data/mscoco
 # JPEG image file to caption.
 IMAGE_FILE="${HOME}/projects/ic_models/im2txt-visual-concepts/im2txt/data/mscoco-visual-concepts/raw-data/val2014/,${HOME}/projects/ic_models/im2txt-visual-concepts/im2txt/data/mscoco-visual-concepts/raw-data/annotations/captions_val2014.json,${HOME}/projects/ic_models/im2txt-visual-concepts/im2txt/data/mscoco-visual-concepts/raw-data/val_sorted.json"
 
-OUTPUT_FILE="${HOME}/projects/ic_models/im2txt-ensemble/ouputs/captions_val2014_ensemble_results.json"
+OUTPUT_FILE="${HOME}/projects/ic_models/im2txt-ensemble/outputs/captions_val2014_ensemble_mt_results.json"
 
 # Build the inference binary.
 cd ${HOME}/projects/ic_models/im2txt-ensemble
-bazel build -c opt //ensemble:mm_val
+bazel build -c opt //ensemble:mm_val_mt
 
 # Ignore GPU devices (only necessary if your GPU is currently memory
 # constrained, for example, by running the training script).
 export CUDA_VISIBLE_DEVICES=3
 
 # Run inference to generate captions.
-bazel-bin/ensemble/mm_val \
+bazel-bin/ensemble/mm_val_mt \
   --checkpoint_path=${CHECKPOINT_PATH} \
   --vocab_file=${VOCAB_FILE} \
   --input_files=${IMAGE_FILE} \
   --output_files=${OUTPUT_FILE} \
-  --debug_mod=''
 

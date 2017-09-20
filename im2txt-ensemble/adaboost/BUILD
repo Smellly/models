@@ -7,7 +7,7 @@ exports_files(["LICENSE"])
 package_group(
     name = "internal",
     packages = [
-        "//ensemble/...",
+        "//adaboost/...",
     ],
 )
 
@@ -52,9 +52,9 @@ py_library(
     srcs = ["show_and_tell_model.py"],
     srcs_version = "PY2AND3",
     deps = [
-        "//ensemble/ops:image_embedding",
-        "//ensemble/ops:image_processing",
-        "//ensemble/ops:inputs",
+        "//adaboost/ops:image_embedding",
+        "//adaboost/ops:image_processing",
+        "//adaboost/ops:inputs",
     ],
 )
 
@@ -74,7 +74,7 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         ":show_and_tell_model",
-        "//ensemble/inference_utils:inference_wrapper_base",
+        "//adaboost/inference_utils:inference_wrapper_base",
     ],
 )
 
@@ -105,8 +105,8 @@ py_binary(
     deps = [
         ":configuration",
         ":inference_wrapper",
-        "//ensemble/inference_utils:caption_generator",
-        "//ensemble/inference_utils:vocabulary",
+        "//adaboost/inference_utils:caption_generator",
+        "//adaboost/inference_utils:vocabulary",
     ],
 )
 
@@ -117,8 +117,8 @@ py_binary(
     deps = [
         ":configuration",
         ":inference_wrapper",
-        "//ensemble/inference_utils:caption_generator",
-        "//ensemble/inference_utils:vocabulary",
+        "//adaboost/inference_utils:caption_generator",
+        "//adaboost/inference_utils:vocabulary",
     ],
 )
 
@@ -129,8 +129,8 @@ py_binary(
     deps = [
         ":configuration",
         ":inference_wrapper",
-        "//ensemble/inference_utils:caption_generator",
-        "//ensemble/inference_utils:vocabulary",
+        "//adaboost/inference_utils:caption_generator",
+        "//adaboost/inference_utils:vocabulary",
     ],
 )
 
@@ -141,9 +141,9 @@ py_binary(
     deps = [
         ":configuration",
         ":inference_wrapper",
-        "//ensemble/inference_utils:mm_caption_generator",
-        "//ensemble/inference_utils:caption_generator",
-        "//ensemble/inference_utils:vocabulary",
+        "//adaboost/inference_utils:mm_caption_generator",
+        "//adaboost/inference_utils:caption_generator",
+        "//adaboost/inference_utils:vocabulary",
     ],
 )
 
@@ -154,9 +154,9 @@ py_binary(
     deps = [
         ":configuration",
         ":inference_wrapper",
-        "//ensemble/inference_utils:mm_caption_generator",
-        "//ensemble/inference_utils:caption_generator",
-        "//ensemble/inference_utils:vocabulary",
+        "//adaboost/inference_utils:mm_caption_generator",
+        "//adaboost/inference_utils:caption_generator",
+        "//adaboost/inference_utils:vocabulary",
     ],
 )
 
@@ -167,7 +167,7 @@ py_binary(
     deps = [
         ":configuration",
         ":inference_wrapper",
-        "//ensemble/inference_utils:caption_generator",
-        "//ensemble/inference_utils:vocabulary",
+        "//adaboost/inference_utils:caption_generator",
+        "//adaboost/inference_utils:vocabulary",
     ],
 )

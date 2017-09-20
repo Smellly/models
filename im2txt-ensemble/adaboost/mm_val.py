@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-r"""Generate captions for images using default beam search parameters.
-    With multi models ensemble & multithread
-"""
+r"""Generate captions for images using default beam search parameters."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -24,7 +22,6 @@ import math
 import os
 import numpy as np
 import json
-import threading
 
 from ast import literal_eval
 from tqdm import tqdm
@@ -49,8 +46,6 @@ tf.flags.DEFINE_string("output_files", "",
                        "validation set saving path.")
 tf.flags.DEFINE_string("debug_mode", "",
                        "debug or not.")
-tf.flags.DEFINE_integer("num_threads", 8,
-                        "Number of threads to preprocess the images.")
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -67,30 +62,6 @@ def getValAttr(path):
     p = [literal_eval(i.split(':')[1])[0] for i in attribute]
     filename_to_attribute[filename] = p 
   return filename_to_attribute
-
-def process(thread_index, filenames, ranges, img_path, generator, vocab, save_path):
-  results = []
-  for item in filenames[ranges[thread_index][0]:ranges[thread_index][1]]:
-    filename = img_path + item['file_name'] 
-    with tf.gfile.GFile(filename, "r") as f:
-      image = f.read()
-    try:
-      captions = generator.beam_search(image)
-      ppl = [math.exp(x.logprob) for x in captions]
-      caption = captions[ppl.index(max(ppl))]
-      sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
-      sentence = " ".join(sentence)
-      results.append({"image_id":item['id'], "caption":sentence})
-    except:
-      tf.logging.info('Thread %d filename %s is broken'%(thread_index, item['file_name']))
-    finally:
-      pass
-
-  with open(save_path.replace('.json', str(thread_index)+'.json'), 'w') as f:
-      json.dump(results, f)
-
-  tf.logging.info("%s: Thread %d finished processing all %d image caption generation." %
-          (datetime.now(), thread_index, len(filenames)))
 
 def main(_):
   debug_mode = True if FLAGS.debug_mode == 'debug' else False
@@ -131,49 +102,89 @@ def main(_):
     m['restore_fn'](m['sess'])
   generator = caption_generator.CaptionGenerator(models, vocab)
 
-  img_path, annos_path, attrs_path = FLAGS.input_files.split(",")
-  save_path = FLAGS.output_files
+  if debug_mode:
+    filenames = FLAGS.input_files
+  else:
+    # wait for full version of val
+    img_path, annos_path, attrs_path = FLAGS.input_files.split(",")
+    save_path = FLAGS.output_files
 
-  tf.logging.info("save_path : %s"%save_path)
-  tf.logging.info("Loading filenames")
-  filenames = getValID(annos_path)
-  # filename_to_attribute = getValAttr(attrs_path)
+    filenames = getValID(annos_path)
+    # filename_to_attribute = getValAttr(attrs_path)
 
+  epoch = 0
+  savefreq = 200
+  filenames = []
   results = []
-  num_threads = FLAGS.num_threads
+  records = []
+  record_path = save_path.replace('results', 'records')
+  
+  tf.logging.info("record_path : %s"%record_path)
+  tf.logging.info("save_path : %s"%save_path)
+  try:
+    tf.logging.info("Loading records")
+    with open(record_path, 'r') as f:
+      record = json.load(f)
+  except:
+    tf.logging.info("no records to read")
 
-  # supposed we have 20 images and 5 threads
-  # np.linspace(0, 20, 6).astype(np.int) = array([ 0,  4,  8, 12, 16, 20])
-  spacing = np.linspace(0, len(filenames), num_threads + 1).astype(np.int)
-  ranges = []
-  threads = []
-  for i in xrange(len(spacing) - 1):
-    ranges.append([spacing[i], spacing[i + 1]])
+  if debug_mode:
+    print('DEBUG:', FLAGS.input_files.split(","))
+    print('DEBUG:', FLAGS.input_files.split(",")[0])
+    print('DEBUG:', tf.gfile.Glob(FLAGS.input_files.split(",")[0]))
 
-  # Create a mechanism for monitoring when all threads are finished.
-  coord = tf.train.Coordinator()
+  if debug_mode:
+    for file_pattern in FLAGS.input_files.split(","):
+      filenames.extend(tf.gfile.Glob(file_pattern))
+    tf.logging.info("Running caption generation on %d files matching %s",
+                    len(filenames), FLAGS.input_files)
+  else:
+    tf.logging.info("Loading filenames")
+    filenames = getValID(annos_path)
 
-  # Launch a thread for each batch.
-  tf.logging.info("Launching %d threads for spacings: %s" % (num_threads, ranges))
-  for thread_index in xrange(len(ranges)):
-    args = (thread_index, filenames, ranges, img_path, generator, vocab, save_path)
-    t = threading.Thread(target=process, args=args)
-    t.start()
-    threads.append(t)
+  
 
-  # Wait for all the threads to terminate.
-  coord.join(threads)
+  for item in tqdm(filenames):
+    if debug_mode:
+      print('DEBUG:', item)
+    if debug_mode:
+      filename = item
+      print('DEBUG:', filename)
+    elif item['id'] in records:
+      continue
+    else:
+      filename = img_path + item['file_name']
+    
+    with tf.gfile.GFile(filename, "r") as f:
+      image = f.read()
+    try:
+      captions = generator.beam_search(image)
+      ppl = [math.exp(x.logprob) for x in captions]
+      caption = captions[ppl.index(max(ppl))]
+      sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
+      sentence = " ".join(sentence)
+      if debug_mode:
+        print('sentence:', sentence)
+      else:
+        results.append({"image_id":item['id'], "caption":sentence})
+        records.append(item['id'])
+    except:
+      print('filename %s is broken'%item['file_name'])
+    finally:
+      if not debug_mode:
+        if epoch % savefreq == 0:
+            tf.logging.info('%d times temporally saving...'%(int(epoch/savefreq)))
+            with open(save_path, 'w') as f:
+              json.dump(results, f)
+            with open(record_path, 'w') as f:
+              json.dump(records, f)
+        epoch += 1
 
-  for thread_index in xrange(len(ranges)):
-    with open(save_path.replace('.json', str(thread_index)+'.json'), 'r') as f:
-      results.extend(json.load(f))
-
-  with open(save_path, 'r') as f:
+  if not debug_mode:
+    with open(save_path, 'w') as f:
       json.dump(results, f)
-
-  tf.logging.info(
-        "%s: Finished processing all %d image caption generation in data set '%s'." %
-        (datetime.now(), len(filenames), img_path))
+    with open(record_path, 'w') as f:
+      json.dump(records, f)
 
 
 if __name__ == "__main__":
