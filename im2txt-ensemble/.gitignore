@@ -12,3 +12,10 @@ ensemble/results/
 ensemble/records/
 
 outputs
+
+adaboost/data/inception_v3.ckpt
+adaboost/data/mscoco-visual-concepts/
+adaboost/data/readTFRecord.py
+adaboost/model/
+adaboost/results/
+adaboost/records/

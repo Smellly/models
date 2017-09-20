@@ -82,14 +82,14 @@ def process(thread_index, filenames, ranges, img_path, generator, vocab, save_pa
       sentence = " ".join(sentence)
       results.append({"image_id":item['id'], "caption":sentence})
     except:
-      print('filename %s is broken'%item['file_name'])
+      tf.logging.info('Thread %d filename %s is broken'%(thread_index, item['file_name']))
     finally:
       pass
 
   with open(save_path.replace('.json', str(thread_index)+'.json'), 'w') as f:
       json.dump(results, f)
 
-  print("%s: Thread %d finished processing all %d image caption generation." %
+  tf.logging.info("%s: Thread %d finished processing all %d image caption generation." %
           (datetime.now(), thread_index, len(filenames)))
 
 def main(_):
@@ -144,7 +144,7 @@ def main(_):
 
   # supposed we have 20 images and 5 threads
   # np.linspace(0, 20, 6).astype(np.int) = array([ 0,  4,  8, 12, 16, 20])
-  spacing = np.linspace(0, len(images), num_threads + 1).astype(np.int)
+  spacing = np.linspace(0, len(filenames), num_threads + 1).astype(np.int)
   ranges = []
   threads = []
   for i in xrange(len(spacing) - 1):
@@ -154,7 +154,7 @@ def main(_):
   coord = tf.train.Coordinator()
 
   # Launch a thread for each batch.
-  print("Launching %d threads for spacings: %s" % (num_threads, ranges))
+  tf.logging.info("Launching %d threads for spacings: %s" % (num_threads, ranges))
   for thread_index in xrange(len(ranges)):
     args = (thread_index, filenames, ranges, img_path, generator, vocab, save_path)
     t = threading.Thread(target=process, args=args)
@@ -171,7 +171,8 @@ def main(_):
   with open(save_path, 'r') as f:
       json.dump(results, f)
 
-  print("%s: Finished processing all %d image caption generation in data set '%s'." %
+  tf.logging.info(
+        "%s: Finished processing all %d image caption generation in data set '%s'." %
         (datetime.now(), len(filenames), img_path))
 
 
