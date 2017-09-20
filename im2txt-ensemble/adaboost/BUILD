@@ -79,16 +79,6 @@ py_library(
 )
 
 py_binary(
-    name = "train",
-    srcs = ["train.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        ":configuration",
-        ":show_and_tell_model",
-    ],
-)
-
-py_binary(
     name = "evaluate",
     srcs = ["evaluate.py"],
     srcs_version = "PY2AND3",
@@ -123,18 +113,6 @@ py_binary(
 )
 
 py_binary(
-    name = "multiModel_val",
-    srcs = ["multiModel_val.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        ":configuration",
-        ":inference_wrapper",
-        "//adaboost/inference_utils:caption_generator",
-        "//adaboost/inference_utils:vocabulary",
-    ],
-)
-
-py_binary(
     name = "mm_val",
     srcs = ["mm_val.py"],
     srcs_version = "PY2AND3",
@@ -155,18 +133,6 @@ py_binary(
         ":configuration",
         ":inference_wrapper",
         "//adaboost/inference_utils:mm_caption_generator",
-        "//adaboost/inference_utils:caption_generator",
-        "//adaboost/inference_utils:vocabulary",
-    ],
-)
-
-py_binary(
-    name = "multiModel_run_inference",
-    srcs = ["multiModel_run_inference.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        ":configuration",
-        ":inference_wrapper",
         "//adaboost/inference_utils:caption_generator",
         "//adaboost/inference_utils:vocabulary",
     ],
