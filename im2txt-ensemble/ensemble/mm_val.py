@@ -65,7 +65,7 @@ def getValAttr(path):
 
 def main(_):
   debug_mode = True if FLAGS.debug_mode == 'debug' else False
-  ensemble = [2,4]
+  ensemble = [2, 4, 6, 7, 8]
   num = len(ensemble)
   models = []
   generators = []

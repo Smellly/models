@@ -11,7 +11,7 @@ VOCAB_FILE="${HOME}/projects/ic_models/im2txt-visual-concepts/im2txt/data/mscoco
 # JPEG image file to caption.
 IMAGE_FILE="${HOME}/projects/ic_models/im2txt-visual-concepts/im2txt/data/mscoco-visual-concepts/raw-data/val2014/,${HOME}/projects/ic_models/im2txt-visual-concepts/im2txt/data/mscoco-visual-concepts/raw-data/annotations/captions_val2014.json,${HOME}/projects/ic_models/im2txt-visual-concepts/im2txt/data/mscoco-visual-concepts/raw-data/val_sorted.json"
 
-OUTPUT_FILE="${HOME}/projects/ic_models/im2txt-ensemble/ouputs/captions_val2014_ensemble_records.json"
+OUTPUT_FILE="${HOME}/projects/ic_models/im2txt-ensemble/ouputs/captions_val2014_ensemble_results.json"
 
 # Build the inference binary.
 cd ${HOME}/projects/ic_models/im2txt-ensemble
