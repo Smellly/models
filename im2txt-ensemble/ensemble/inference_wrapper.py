@@ -49,3 +49,14 @@ class InferenceWrapper(inference_wrapper_base.InferenceWrapperBase):
             "lstm/state_feed:0": state_feed,
         })
     return softmax_output, state_output, None
+
+  # for multi models ensemble 
+  # logits did not through softmax
+  def mm_inference_step(self, sess, input_feed, state_feed):
+    logits_output, state_output = sess.run(
+        fetches=["logits:0", "lstm/state:0"],
+        feed_dict={
+            "input_feed:0": input_feed,
+            "lstm/state_feed:0": state_feed,
+        })
+    return logits_output, state_output, None

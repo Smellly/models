@@ -83,7 +83,7 @@ def main(_):
       model_ckpt = tf.train.get_checkpoint_state(saver_def_file)
       assert(model_ckpt != None)
       if debug_mode:
-        print('DEBUG:', model_ckpt)
+        print('DEBUG: model_ckpt', model_ckpt)
       d['restore_fn'] = d['model'].build_graph_from_config(
                                                 configuration.ModelConfig(),
                                                 model_ckpt.model_checkpoint_path)
@@ -105,7 +105,6 @@ def main(_):
   if debug_mode:
     filenames = FLAGS.input_files
   else:
-    # wait for full version of val
     img_path, annos_path, attrs_path = FLAGS.input_files.split(",")
     save_path = FLAGS.output_files
 
@@ -117,39 +116,39 @@ def main(_):
   filenames = []
   results = []
   records = []
-  record_path = save_path.replace('results', 'records')
-  
-  tf.logging.info("record_path : %s"%record_path)
-  tf.logging.info("save_path : %s"%save_path)
-  try:
-    tf.logging.info("Loading records")
-    with open(record_path, 'r') as f:
-      record = json.load(f)
-  except:
-    tf.logging.info("no records to read")
+  if not debug_mode:
+    record_path = save_path.replace('results', 'records')
+    tf.logging.info("record_path : %s"%record_path)
+    tf.logging.info("save_path : %s"%save_path)
+    try:
+      tf.logging.info("Loading records")
+      with open(record_path, 'r') as f:
+        record = json.load(f)
+    except:
+      tf.logging.info("no records to read")
 
   if debug_mode:
-    print('DEBUG:', FLAGS.input_files.split(","))
-    print('DEBUG:', FLAGS.input_files.split(",")[0])
-    print('DEBUG:', tf.gfile.Glob(FLAGS.input_files.split(",")[0]))
+    print('DEBUG: FLAGS.input_files.split(",")', 
+                  FLAGS.input_files.split(","))
+    print('DEBUG: FLAGS.input_files.split(",")[0]',
+                  FLAGS.input_files.split(",")[0])
+    print('DEBUG: tf.gfile.Glob(FLAGS.input_files.split(",")[0])', 
+                  tf.gfile.Glob(FLAGS.input_files.split(",")[0]))
 
   if debug_mode:
     for file_pattern in FLAGS.input_files.split(","):
       filenames.extend(tf.gfile.Glob(file_pattern))
-    tf.logging.info("Running caption generation on %d files matching %s",
-                    len(filenames), FLAGS.input_files)
   else:
     tf.logging.info("Loading filenames")
     filenames = getValID(annos_path)
 
-  
+  tf.logging.info("Running caption generation on %d files matching %s",
+                    len(filenames), FLAGS.input_files)
 
   for item in tqdm(filenames):
     if debug_mode:
-      print('DEBUG:', item)
-    if debug_mode:
       filename = item
-      print('DEBUG:', filename)
+      print('DEBUG: filename', filename)
     elif item['id'] in records:
       continue
     else:
@@ -157,28 +156,39 @@ def main(_):
     
     with tf.gfile.GFile(filename, "r") as f:
       image = f.read()
-    try:
+    if debug_mode:
       captions = generator.beam_search(image)
       ppl = [math.exp(x.logprob) for x in captions]
       caption = captions[ppl.index(max(ppl))]
       sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
       sentence = " ".join(sentence)
-      if debug_mode:
-        print('sentence:', sentence)
-      else:
-        results.append({"image_id":item['id'], "caption":sentence})
-        records.append(item['id'])
-    except:
-      print('filename %s is broken'%item['file_name'])
-    finally:
-      if not debug_mode:
-        if epoch % savefreq == 0:
-            tf.logging.info('%d times temporally saving...'%(int(epoch/savefreq)))
-            with open(save_path, 'w') as f:
-              json.dump(results, f)
-            with open(record_path, 'w') as f:
-              json.dump(records, f)
-        epoch += 1
+      print('DEBUG: sentence:', sentence)
+    else:
+      try:
+        captions = generator.beam_search(image)
+        ppl = [math.exp(x.logprob) for x in captions]
+        caption = captions[ppl.index(max(ppl))]
+        sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
+        sentence = " ".join(sentence)
+        if debug_mode:
+          print('DEBUG: sentence:', sentence)
+        else:
+          results.append({"image_id":item['id'], "caption":sentence})
+          records.append(item['id'])
+      except:
+        if not debug_mode:
+          print('filename %s is broken'%item['file_name'])
+        else:
+          print('DEBUG: something wrong in beam_search')
+      finally:
+        if not debug_mode:
+          if epoch % savefreq == 0:
+              tf.logging.info('%d times temporally saving...'%(int(epoch/savefreq)))
+              with open(save_path, 'w') as f:
+                json.dump(results, f)
+              with open(record_path, 'w') as f:
+                json.dump(records, f)
+          epoch += 1
 
   if not debug_mode:
     with open(save_path, 'w') as f:

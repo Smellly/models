@@ -185,14 +185,19 @@ class CaptionGenerator(object):
       for ind, m in enumerate(self.models):
         # partial_captions = m['partial_captions']
         # partial_captions_list.extend(partial_captions.extract())
-        softmax, new_states, metadata = m['model'].inference_step(m['sess'],
+        # logits did not go through softmax
+        logits, new_states, metadata = m['model'].mm_inference_step(m['sess'],
                                                                   input_feed,
                                                                   state_feed)
         # self.models[ind]['state'] = new_states
         # self.models[ind]['metadata'] = metadata # None actually
+        print('DEBUG: model %d', ind+1, type(new_states), new_states)
+        max0 = np.amax(logits)
+        # for numerical stability shift into good numerical range
+        e0 = np.exp(y0 - maxy0) 
+        p0 += e0 / np.sum(e0)
 
       partial_captions.reset()
-      p0 += softmax
       p0 /= self.num_models
 
       for i, partial_caption in enumerate(partial_captions_list):
