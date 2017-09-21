@@ -49,3 +49,19 @@ class InferenceWrapper(inference_wrapper_base.InferenceWrapperBase):
             "lstm/state_feed:0": state_feed,
         })
     return softmax_output, state_output, None
+
+  # for multi models ensemble 
+  # logits did not through softmax
+  '''
+  ValueError: Fetch argument 'logits:0' cannot be interpreted as a Tensor. 
+  ("The name 'logits:0' refers to a Tensor which does not exist. 
+  The operation, 'logits', does not exist in the graph.")
+  '''
+  def mm_inference_step(self, sess, input_feed, state_feed):
+    logits_output, state_output = sess.run(
+        fetches=["logits:0", "lstm/state:0"],
+        feed_dict={
+            "input_feed:0": input_feed,
+            "lstm/state_feed:0": state_feed,
+        })
+    return logits_output, state_output, None

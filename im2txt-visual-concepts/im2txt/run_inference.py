@@ -21,6 +21,8 @@ from __future__ import print_function
 import math
 import os
 
+import numpy as np
+
 
 import tensorflow as tf
 
@@ -71,11 +73,12 @@ def main(_):
     # beam search parameters. See caption_generator.py for a description of the
     # available beam search parameters.
     generator = caption_generator.CaptionGenerator(model, vocab)
+    attribute = np.random.random([1000,])
 
     for filename in filenames:
       with tf.gfile.GFile(filename, "r") as f:
         image = f.read()
-      captions = generator.beam_search(sess, image)
+      captions = generator.beam_search(sess, image, attribute)
       print("Captions for image %s:" % os.path.basename(filename))
       for i, caption in enumerate(captions):
         # Ignore begin and end words.

@@ -142,7 +142,6 @@ py_binary(
         ":configuration",
         ":inference_wrapper",
         "//ensemble/inference_utils:mm_caption_generator",
-        "//ensemble/inference_utils:caption_generator",
         "//ensemble/inference_utils:vocabulary",
     ],
 )
@@ -155,7 +154,6 @@ py_binary(
         ":configuration",
         ":inference_wrapper",
         "//ensemble/inference_utils:mm_caption_generator",
-        "//ensemble/inference_utils:caption_generator",
         "//ensemble/inference_utils:vocabulary",
     ],
 )

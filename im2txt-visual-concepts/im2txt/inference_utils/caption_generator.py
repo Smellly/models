@@ -162,7 +162,7 @@ class CaptionGenerator(object):
     complete_captions = TopN(self.beam_size)
 
     # Run beam search.
-    for _ in range(self.max_caption_length - 1):
+    for ii in range(self.max_caption_length - 1):
       partial_captions_list = partial_captions.extract()
       partial_captions.reset()
       input_feed = np.array([c.sentence[-1] for c in partial_captions_list])
@@ -171,8 +171,12 @@ class CaptionGenerator(object):
       softmax, new_states, metadata = self.model.inference_step(sess,
                                                                 input_feed,
                                                                 state_feed)
+      print(ii, 'step softmax:', softmax.shape)
+      print(ii, 'step new_states:', new_states.shape)
+      print(ii, 'step len(partial_captions_list):', len(partial_captions_list))
 
       for i, partial_caption in enumerate(partial_captions_list):
+        print('partial_caption:', i, partial_caption.sentence)
         word_probabilities = softmax[i]
         state = new_states[i]
         # For this partial caption, get the beam_size most probable next words.
