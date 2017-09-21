@@ -144,7 +144,7 @@ class CaptionGenerator(object):
     self.models = models
     self.num_models = len(models)
 
-    self.beam_size = beam_size
+    self.beam_size = beam_size #if beam_size > self.num_models else self.num_models
     self.max_caption_length = max_caption_length
     self.length_normalization_factor = length_normalization_factor
 
@@ -164,42 +164,55 @@ class CaptionGenerator(object):
 
     for ind, m in enumerate(self.models):
       initial_state = m['model'].feed_image(m['sess'], encoded_image)
-
-      initial_beam = Caption(
-          sentence=[self.vocab.start_id],
-          state=initial_state[0],
-          logprob=0.0,
-          score=0.0,
-          metadata=[""])
-    
-      partial_captions.push(initial_beam)
-      # self.models[ind]['partial_captions'] = (partial_captions,)
+      softmax, new_states, metadata = m['model'].inference_step(m['sess'],
+                                                                np.array([self.vocab.start_id]),
+                                                                np.array(initial_state))
+      # print('DEBUG: softmax', type(softmax), softmax.shape)
+      words_and_probs = list(enumerate(softmax[0]))
+      words_and_probs.sort(key=lambda x: -x[1])
+      words_and_probs = words_and_probs[0:self.beam_size]
+      for w, p in words_and_probs:
+        if p < 1e-12:
+          continue  # Avoid log(0).
+        sentence = [self.vocab.start_id] + [w]
+        logprob = 0 + math.log(p)
+        score = logprob
+        initial_beam = Caption(
+            sentence=sentence,
+            state=new_states[0],
+            logprob=logprob,
+            score=score,
+            metadata=[""])
+        partial_captions.push(initial_beam) 
+      # len(partial_captions) == 5 but partial_captions will only keep beam_size number
 
     # Run beam search.
     for _ in range(self.max_caption_length - 1):
-      p0 = 0.
       partial_captions_list = partial_captions.extract()
       input_feed = np.array([c.sentence[-1] for c in partial_captions_list])
       state_feed = np.array([c.state for c in partial_captions_list])
 
+      # print('DEBUG: self.num_models', self.num_models)
+      # print('DEBUG: self.beam_size', self.beam_size) 
+      # print('DEBUG: len(partial_captions_list)', len(partial_captions_list)) # 5
+      p0 = 0.
       for ind, m in enumerate(self.models):
-        # partial_captions = m['partial_captions']
-        # partial_captions_list.extend(partial_captions.extract())
-        # logits did not go through softmax
-        logits, new_states, metadata = m['model'].mm_inference_step(m['sess'],
+        softmax, new_states, metadata = m['model'].inference_step(m['sess'],
                                                                   input_feed,
                                                                   state_feed)
-        # self.models[ind]['state'] = new_states
-        # self.models[ind]['metadata'] = metadata # None actually
-        print('DEBUG: model %d', ind+1, type(new_states), new_states)
-        max0 = np.amax(logits)
+        # print('DEBUG: model', ind+1, type(new_states), new_states.shape)
+        # <type 'numpy.ndarray'>, (3, 1024)
+        # print('DEBUG: softmax', type(softmax), softmax.shape)
+        # <type 'numpy.ndarray'> (3, 12000)      
+        maxy0 = np.amax(softmax)
         # for numerical stability shift into good numerical range
-        e0 = np.exp(y0 - maxy0) 
+        e0 = np.exp(softmax - maxy0) 
         p0 += e0 / np.sum(e0)
 
       partial_captions.reset()
       p0 /= self.num_models
 
+      # attention partial_caption witout s , which is a Cation class!!!
       for i, partial_caption in enumerate(partial_captions_list):
         word_probabilities = p0[i]
         state = new_states[i]
@@ -222,6 +235,7 @@ class CaptionGenerator(object):
             complete_captions.push(beam)
           else:
             beam = Caption(sentence, state, logprob, score, None)
+            # TopN class
             partial_captions.push(beam)
 
       if partial_captions.size() == 0:
