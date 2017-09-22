@@ -28,6 +28,7 @@ import threading
 
 from ast import literal_eval
 from tqdm import tqdm
+from datetime import datetime
 
 import tensorflow as tf
 
@@ -94,7 +95,7 @@ def process(thread_index, filenames, ranges, img_path, generator, vocab, save_pa
 
 def main(_):
   debug_mode = True if FLAGS.debug_mode == 'debug' else False
-  ensemble = [2]
+  ensemble = [2, 4, 6, 7, 8]
   num = len(ensemble)
   models = []
   generators = []
