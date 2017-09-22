@@ -112,13 +112,13 @@ def main(_):
       except:
         print('filename %s is broken'%item['fine_name'])
       finally:
-        epoch += 1
         if epoch % savefreq == 0:
           print('%d times saving'%(int(epoch/savefreq)))
           with open(save_path, 'w') as f:
             json.dump(results, f)
           with open(record_path, 'w') as f:
             json.dump(records, f)
+        epoch += 1
     
     with open(save_path, 'w') as f:
       json.dump(results, f)

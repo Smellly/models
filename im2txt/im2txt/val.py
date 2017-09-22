@@ -66,10 +66,14 @@ def main(_):
   # Build the inference graph.
   g = tf.Graph()
   tf.reset_default_graph()
+  print(FLAGS.checkpoint_path)
   with g.as_default():
     model = inference_wrapper.InferenceWrapper()
+    model_ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_path)
+    assert(model_ckpt != None)
+    print(model_ckpt.model_checkpoint_path)
     restore_fn = model.build_graph_from_config(configuration.ModelConfig(),
-                                               FLAGS.checkpoint_path)
+                                               model_ckpt.model_checkpoint_path.replace('train', 'raw_adam'))
   g.finalize()
 
   # Create the vocabulary.
@@ -77,6 +81,13 @@ def main(_):
 
   img_path, annos_path = FLAGS.input_files.split(",")
   save_path = FLAGS.output_files
+  results = []
+  # record image which have been process
+  records = []
+  savefreq = 10000
+  record_path = save_path.replace('results', 'records')
+  print('record_path : %s'%record_path)
+  print('save_path : %s'%save_path)
 
   filenames = getValID(annos_path)
 
@@ -86,13 +97,6 @@ def main(_):
   with tf.Session(graph=g) as sess:
     # Load the model from checkpoint.
     restore_fn(sess)
-    results = []
-    # record image which have been process
-    records = []
-    savefreq = 10000
-    record_path = save_path.replace('results', 'records')
-    print('record_path : %s'%record_path)
-    print('save_path : %s'%save_path)
     try:
       with open(record_path, 'r') as f:
         record = json.load(f)
@@ -123,13 +127,13 @@ def main(_):
       except:
         print('filename %s is broken'%item['file_name'])
       finally:
-        epoch += 1
         if epoch % savefreq == 0:
             print('%d times temporally saving...'%(int(epoch/savefreq)))
             with open(save_path, 'w') as f:
               json.dump(results, f)
             with open(record_path, 'w') as f:
               json.dump(records, f)
+        epoch += 1
     
     with open(save_path, 'w') as f:
       json.dump(results, f)

@@ -105,7 +105,7 @@ def main(_):
   if debug_mode:
     filenames = FLAGS.input_files
   else:
-    img_path, annos_path, attrs_path = FLAGS.input_files.split(",")
+    img_path, annos_path, attr_data = FLAGS.input_files.split(",")
     save_path = FLAGS.output_files
 
     filenames = getValID(annos_path)
