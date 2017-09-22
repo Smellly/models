@@ -94,7 +94,7 @@ def process(thread_index, filenames, ranges, img_path, generator, vocab, save_pa
 
 def main(_):
   debug_mode = True if FLAGS.debug_mode == 'debug' else False
-  ensemble = [2, 4, 6, 7, 8]
+  ensemble = [4] # [2, 4, 6, 7, 8]
   num = len(ensemble)
   models = []
   generators = []
@@ -165,10 +165,14 @@ def main(_):
   coord.join(threads)
 
   for thread_index in xrange(len(ranges)):
+    tf.logging.info(
+        "%s: Loading json in dataset '%d'." %
+        (datetime.now(), thread_index))
+
     with open(save_path.replace('.json', str(thread_index)+'.json'), 'r') as f:
       results.extend(json.load(f))
 
-  with open(save_path, 'r') as f:
+  with open(save_path, 'w') as f:
       json.dump(results, f)
 
   tf.logging.info(
