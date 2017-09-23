@@ -87,24 +87,25 @@ def process_image(encoded_image, config, thread_id=0):
                                           image_format=config.image_format)
 
 def read(reader, config):
-  
-  input_queue = input_ops.prefetch_input_data(
-        reader,
-        file_pattern=config.input_file_pattern,
-        # file_pattern='mscoco/val-?????-of-00004',
-        values_per_shard=config.values_per_input_shard,
-        is_training=False,
-        batch_size=config.batch_size)
-  # images_and_captions = []
-  serialized_sequence_example = input_queue.dequeue()
+  data_files = []
+  file_pattern = config.input_file_pattern
+  for pattern in file_pattern.split(","):
+    data_files.extend(tf.gfile.Glob(pattern))
+  if not data_files:
+    tf.logging.fatal("Found no input files matching %s", file_pattern)
+  else:
+    tf.logging.info("Prefetching values from %d files matching %s",
+                      len(data_files), file_pattern)
+
+  filename_queue = tf.train.string_input_producer(
+          data_files, shuffle=False, capacity=1)
+  _, serialized_sequence_example = reader.read(filename_queue)
   encoded_image_id, encoded_image, caption = parse_sequence_example(
       serialized_sequence_example,
       image_id="image/image_id",
-      image_feature=config.image_feature_name,
-      caption_feature=config.caption_feature_name)
-  # image = process_image(encoded_image, config, thread_id=0)
-  # images_and_captions.append([])
-  return [encoded_image_id, encoded_image, caption]
+      image_feature=config.image_feature_name, #  "image/data"
+      caption_feature=config.caption_feature_name) # "image/caption_ids"
+  return encoded_image_id, encoded_image, caption
 
 def main(_):
   assert FLAGS.input_file_pattern, "--input_file_pattern is required"
@@ -118,7 +119,7 @@ def main(_):
     model = inference_wrapper.InferenceWrapper()
     restore_fn = model.build_graph_from_config(model_config,
                                                FLAGS.checkpoint_path)
-  # g.finalize()
+  #g.finalize()
 
   # Create the vocabulary.
   vocab = vocabulary.Vocabulary(FLAGS.vocab_file)
@@ -126,7 +127,6 @@ def main(_):
   tf.logging.info('save_path : %s'%save_path)
   results = []
   records = []
-  step = 0
 
   with tf.Session(graph=g) as sess:
     # Load the model from checkpoint.
@@ -143,32 +143,29 @@ def main(_):
     tf.logging.info(
                 "%s Start processing image caption generation in dataset." %
                 (datetime.now()))
-    try:
-      while not coord.should_stop(): #loop forever
-        img_id, encoded_image, _ = sess.run(images_and_captions)
-        if img_id in records:
-          continue
-        else:
-          records.append(img_id)
-        captions = generator.beam_search(sess, encoded_image)
-        ppl = [math.exp(x.logprob) for x in captions]
-        caption = captions[ppl.index(max(ppl))]
-        sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
-        sentence = " ".join(sentence)
-        results.append({"image_id":img_id, "caption":sentence})
-        step += 1
-        if step % 100 == 0:
-          tf.logging.info(
-                "%d steps: %s: Finished processing %d image caption generation in dataset ." %
-                (step, datetime.now(), len(results)))
-    except tf.errors.OutOfRangeError:
-      print('Done training for %d steps'%step)
-    finally:
-      coord.request_stop()
-      coord.join(threads)
+    
+    for step in xrange(2100):
+      img_id, encoded_image, _ = sess.run(images_and_captions)
+      if img_id in records:
+        continue
+      else:
+        records.append(img_id)
+      captions = generator.beam_search(sess, encoded_image)
+      ppl = [math.exp(x.logprob) for x in captions]
+      caption = captions[ppl.index(max(ppl))]
+      sentence = [vocab.id_to_word(w) for w in caption.sentence[1:-1]]
+      sentence = " ".join(sentence)
+      results.append({"image_id":img_id, "caption":sentence})
+      if step % 100 == 0:
+        tf.logging.info(
+              "%d steps: %s: Finished processing %d image caption generation in dataset." %
+              (step, datetime.now(), len(results)))
+
+    coord.request_stop()
+    coord.join(threads)
 
     tf.logging.info(
-        "%s: Finished processing all %d image caption generation in dataset ." %
+        "%s: Finished processing all %d image caption generation in dataset." %
         (datetime.now(), len(results)))
     with open(save_path, 'w') as f:
       json.dump(results, f)
