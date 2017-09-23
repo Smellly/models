@@ -144,7 +144,7 @@ def main(_):
                 "%s Start processing image caption generation in dataset." %
                 (datetime.now()))
     
-    for step in xrange(2100):
+    for step in xrange(20000):
       img_id, encoded_image, _ = sess.run(images_and_captions)
       if img_id in records:
         continue
