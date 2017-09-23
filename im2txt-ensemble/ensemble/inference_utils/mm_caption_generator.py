@@ -204,10 +204,11 @@ class CaptionGenerator(object):
         # <type 'numpy.ndarray'>, (3, 1024)
         # print('DEBUG: softmax', type(softmax), softmax.shape)
         # <type 'numpy.ndarray'> (3, 12000)      
-        maxy0 = np.amax(softmax)
+        # maxy0 = np.amax(softmax)
         # for numerical stability shift into good numerical range
-        e0 = np.exp(softmax - maxy0) 
-        p0 += e0 / np.sum(e0)
+        # e0 = np.exp(softmax - maxy0) 
+        # p0 += e0 / np.sum(e0)
+        p0 += softmax
 
       partial_captions.reset()
       p0 /= self.num_models

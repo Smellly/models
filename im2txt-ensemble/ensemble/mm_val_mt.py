@@ -96,11 +96,7 @@ def process(thread_index, filenames, ranges, img_path, generator, vocab, save_pa
 
 def main(_):
   debug_mode = True if FLAGS.debug_mode == 'debug' else False
-<<<<<<< HEAD
   ensemble = [4] # [2, 4, 6, 7, 8]
-=======
-  ensemble = [2]
->>>>>>> f7e92fb0dfddb055042d6d46e54d2eb774c9a704
   num = len(ensemble)
   models = []
   generators = []
@@ -167,6 +163,7 @@ def main(_):
     t.start()
     threads.append(t)
 
+  tf.logging.info('Waiting for all the threads to terminate')
   # Wait for all the threads to terminate.
   coord.join(threads)
 
