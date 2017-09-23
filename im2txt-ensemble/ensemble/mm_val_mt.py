@@ -168,7 +168,7 @@ def main(_):
 
   for thread_index in xrange(len(ranges)):
     tf.logging.info(
-        "%s: Loading json in dataset '%d'." %
+        "%s: Loading json in dataset %d." %
         (datetime.now(), thread_index))
 
     with open(save_path.replace('.json', str(thread_index)+'.json'), 'r') as f:
@@ -178,8 +178,8 @@ def main(_):
       json.dump(results, f)
 
   tf.logging.info(
-        "%s: Finished processing all %d image caption generation in data set '%s'." %
-        (datetime.now(), len(filenames), img_path))
+        "%s: Finished processing all %d image caption generation in dataset, saving at '%s'." %
+        (datetime.now(), len(filenames), save_path))
 
 
 if __name__ == "__main__":
