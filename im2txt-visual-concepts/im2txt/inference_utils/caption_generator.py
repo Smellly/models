@@ -171,12 +171,12 @@ class CaptionGenerator(object):
       softmax, new_states, metadata = self.model.inference_step(sess,
                                                                 input_feed,
                                                                 state_feed)
-      print(ii, 'step softmax:', softmax.shape)
-      print(ii, 'step new_states:', new_states.shape)
-      print(ii, 'step len(partial_captions_list):', len(partial_captions_list))
+      # print(ii, 'step softmax:', softmax.shape)
+      # print(ii, 'step new_states:', new_states.shape)
+      # print(ii, 'step len(partial_captions_list):', len(partial_captions_list))
 
       for i, partial_caption in enumerate(partial_captions_list):
-        print('partial_caption:', i, partial_caption.sentence)
+        # print('partial_caption:', i, partial_caption.sentence)
         word_probabilities = softmax[i]
         state = new_states[i]
         # For this partial caption, get the beam_size most probable next words.
