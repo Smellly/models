@@ -62,13 +62,20 @@ def process_image(encoded_image, config, thread_id=0):
 
 def read(config):
     reader = tf.TFRecordReader()
+    '''
+          [  './val-00003-of-00004',
+             './val-00001-of-00004',
+             './val-00002-of-00004',
+             './val-00000-of-00004']
+
+          '''
     input_queue = input_ops.prefetch_input_data(
           reader,
           # config.input_file_pattern,
           file_pattern='mscoco/val-?????-of-00004',
           values_per_shard=config.values_per_input_shard,
           is_training=False,
-          batch_size=config.batch_size)
+          batch_size=1)
     # Image processing and random distortion. Split across multiple threads
     # with each thread applying a slightly different distortion.
     assert config.num_preprocess_threads % 2 == 0
@@ -91,9 +98,8 @@ def read(config):
         image_id="image/image_id",
         image_feature=config.image_feature_name, #  "image/data"
         caption_feature=config.caption_feature_name) # "image/caption_ids"
-    #image = process_image(encoded_image, config, thread_id=0)
     images_and_captions.append([encoded_image_id, encoded_image, caption])
-    return [encoded_image_id, encoded_image, caption]
+    # return [encoded_image_id, encoded_image, caption]
 
     # Batch inputs.
     # queue_capacity = (2 * config.num_preprocess_threads *
@@ -104,28 +110,69 @@ def read(config):
     #                                    queue_capacity=queue_capacity))
     return images_and_captions
 
+def read2(config):
+    reader = tf.TFRecordReader()
+    data_files = []
+    file_pattern = 'mscoco/val-?????-of-00004'
+    for pattern in file_pattern.split(","):
+        data_files.extend(tf.gfile.Glob(pattern))
+    if not data_files:
+        tf.logging.fatal("Found no input files matching %s", file_pattern)
+    else:
+        tf.logging.info("Prefetching values from %d files matching %s",
+                        len(data_files), file_pattern)
+    # with tf.name_scope('read'):
+    filename_queue = tf.train.string_input_producer(
+        data_files, shuffle=False, capacity=1, num_epochs=1)
+    images_and_captions = []
+    _, serialized_sequence_example = reader.read(filename_queue)
+    encoded_image_id, encoded_image, caption = parse_sequence_example(
+        serialized_sequence_example,
+        image_id="image/image_id",
+        image_feature=config.image_feature_name, #  "image/data"
+        caption_feature=config.caption_feature_name) # "image/caption_ids"
+    images_and_captions.append([encoded_image_id, encoded_image, caption])
+    return images_and_captions
+
 def main(_):
     config = configuration.ModelConfig()
     #image, caption = read(config)
-    images_and_captions = read(config)
-    init = tf.initialize_all_variables()
+    images_and_captions = read2(config)
+    init_op = tf.group(tf.global_variables_initializer(),
+                        tf.local_variables_initializer())
     with tf.Session() as sess:
-        sess.run(init)
+        sess.run(init_op)
         coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess=sess)
-        i = 0
-        while True:
-            print('i:', i),
-            images_and_captions = sess.run([images_and_captions])
-            print('len of images_and_captions', len(images_and_captions))
-            for ii in images_and_captions:
-                print(ii[1])
-                print(ii[1].shape)
-                print(ii[2])
-            # print(img_id, val.shape, l.shape)
-            # print(l.shape)
-            i += 1
-            break
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+        step = 0
+        records = []
+        # try:
+        flag = False
+        while not coord.should_stop():      
+            images_and_captions_pairs = sess.run(images_and_captions)
+            # print('len of images_and_captions', len(images_and_captions_pairs))
+            # print('len of images_and_captions[0]', len(images_and_captions_pairs[0]))
+            for pairs in images_and_captions_pairs:
+               #print(type(pairs))
+                img_id = pairs[0]
+                if img_id not in records:
+                    records.append(img_id)
+                else:
+                    # flag = True
+                    # break
+                    pass
+                # print(img_id)
+                step += 1
+                # if i%100 == 0:
+                print('loop i:', step)
+            # if flag:
+            #     break
+        # except tf.errors.OutOfRangeError:
+        #     print('Done training for %d steps'%step)
+        # finally:
+        #     coord.request_stop()
+        #     print('i:', step)
+        #     print('len of records:', len(records))
         coord.request_stop()
         coord.join(threads)
 
