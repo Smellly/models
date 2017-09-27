@@ -335,3 +335,73 @@ expected.
 Here is the image:
 
 ![Surfer](g3doc/COCO_val2014_000000224477.jpg)
+
+#### ensemble 是机器学习中的一个方法，相关的资料可以看
+1. 西瓜书
+2. 李航的统计学习方法adaboost部分
+3. cs231n_2017计算机视觉春季学期课程第七课：https://www.bilibili.com/video/av13260183/#page=7
+
+#### 相关的论文可以去看
+1. Show and Tell: A Neural Image Caption Generator
+2. Show and Tell: Lessons learned from the 2015 MSCOCO Image Captioning Challenge
+
+#### 参考代码可以去
+Semantic Compositional Networks for Visual Captioning
+https://github.com/zhegan27/Semantic_Compositional_Nets/blob/master/SCN_decode.py
+我是基于这个代码修改的
+
+#### 在 ic 中的应用
+Ensembles have long been known to be a very simple yet effective way to improve performance of machine learning systems. In the context of deep architectures, one only needs to train separately multiple models on the same
+task, potentially varying some of the training conditions, and aggregating their answers at inference time. 
+For the competition, we(google im2txt) created an ensemble of 5 models trained with Scheduled Sampling and 10 models trained with finetuning the image model. The resulting model was submitted to the competition, and it further improved our results by 1.5 BLEU-4 points.
+简单来说，在每次迭代中把几个模型的概率加起来求和，作为迭代选择词的概率基础。
+SCN加了一个0-1之间的非线性变化的trick，详细可以去阅读代码。
+另外我们代码和SCN的区别是它们的y0/y1没有经过softmax，而我们的有，你可以尝试在我们代码中也使用没有经过softmax的logits试下。尚不清楚是不是这个原因导致的 **ensemble效果比单模型的要差。**
+
+#### 我的代码
+在软件园一期和62公用服务器上都有，
+62的路径为：／home/smelly/projects/ic_models/im2txt-ensemble/
+软件园一期路径为：／home/jay/projects/ic_models/im2txt-ensemble/
+模型在： im2txt-ensemble/ensemble/model/
+建议使用的模型是其中的第[2, 4, 6, 7, 8]个
+（如果要将模型路径改动，可能会出现路径不对的问题，tf的一个bug，自行谷歌解决）
+
+ensemble部分是对ensmeble的实现，adaboost是实现ensemble后接下去要做的部分。建议在 **实现ensemble模型比单模型效果好**的基础上在复制ensemble的代码到adaboost文件夹中开始新的科研。
+scripts是用来执行各种代码的脚本，修改完代码后通过scripts里面的脚本进行编译和运行。
+
+整个代码是在tensorflow im2txt框架上进行修改的，原来的框架可以去看下面这个代码
+https://github.com/ibmsoe/tensorflow-models/tree/master/im2txt
+
+#### ensemble中的代码
+###### mm_val.py
+多模型运行的一个脚本，单线程，数据是val2014中40504张图片（部分图片在训练集中有出现）
+###### mm_val_TFRecords.py
+多模型运行的一个脚本，单线程，数据是已被处理过val-?????-0004中2k张图片，和训练集train-?????-00256没有交集，尚未完成，运行会报错。
+###### mm_val_mt.py
+多模型运行的一个脚本，多线程，数据是val2014中40504张图片（部分图片在训练集中有出现）
+###### multiModel_demo.py  
+tensorflow加载多模型的一个样例代码
+###### multiModel_run_inference.py 
+加载多模型运行对一张图片输出每个模型的结果的代码
+###### multiModel_val.py 
+粗暴的多模型切换方法，缓慢，已封装成mm_val*.py，不要执行这个
+###### val.py 
+单运行的一个脚本，单线程，数据是val2014中40504张图片（部分图片在训练集中有出现）
+###### val_TFRecords.py 
+单运行的一个脚本，单线程，数据是已被处理过val-?????-0004中2k张图片，已可成功运行
+###### inference_utils/mm_caption_generator.py 
+多模型的主要部分
+
+#### 执行步骤
+训练模型步骤参考原模型```readme.md```
+运行ensemble代码
+```
+sh /path/to/scripts/multiModel_val.sh
+```
+将结果文件复制到```coco-caption/results```目录下，按规则取名：
+```
+cp path/to/im2txt-ensemble/outputs/captions_val2014_ensemble_results.json ${HOME}/projects/coco-caption/results/captions_val2014_ensemble_results.json
+cd ${HOME}/projects/coco-caption
+python cocoEvalCap.py ensemble
+```
+就会看到ensemble的结果。
